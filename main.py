@@ -133,7 +133,11 @@ def configure():
         print(hostUrl)
         return redirect(f"stremio://{hostUrl}{user}/{passw}/{cluster}/manifest.json")
     else:
-        return render_template("configure.html")
+        # Get URL parameters for auto-filling
+        user = request.args.get('user', '')
+        passw = request.args.get('passw', '')
+        cluster = request.args.get('cluster', '')
+        return render_template("configure.html", user=user, passw=passw, cluster=cluster)
 
 
 @app.route('/manage', methods=['GET', 'POST'])
@@ -163,11 +167,15 @@ def manage():
         except Exception as e:
             return f"Failure, {str(e)}"
     else:
-        return render_template("manage.html")
+        # Get URL parameters for auto-filling
+        user = request.args.get('user', '')
+        passw = request.args.get('passw', '')
+        cluster = request.args.get('cluster', '')
+        return render_template("manage.html", user=user, passw=passw, cluster=cluster)
     
 @app.route('/<user>/<passw>/<cluster>/configure', methods=['GET', 'POST'])
-def addon_config_redirect():
-    return redirect('/manage')
+def addon_config_redirect(user, passw, cluster):
+    return redirect(f'/manage?user={user}&passw={passw}&cluster={cluster}')
 
 
 @app.route('/view', methods=['GET'])
@@ -188,6 +196,19 @@ def help_page():
 @app.route('/')
 def default():
     return render_template("index.html")
+
+@app.route('/example')
+def example():
+    """Example route showing how to use URL parameters"""
+    return """
+    <h1>URL Parameter Examples</h1>
+    <p>You can now pass MongoDB credentials via URL parameters:</p>
+    <ul>
+        <li><a href="/configure?user=myuser&passw=mypass&cluster=mycluster">Configure with parameters</a></li>
+        <li><a href="/manage?user=myuser&passw=mypass&cluster=mycluster">Manage with parameters</a></li>
+    </ul>
+    <p>This will auto-fill the MongoDB URL fields on both pages.</p>
+    """
 
 
 if __name__ == '__main__':

@@ -278,7 +278,8 @@
                                 </span>
                                 <input type="text" name="db_url" id="db_url" class="form-control"
                                     placeholder="mongodb+srv://username:password@cluster.mongodb.net" required
-                                    oninput="updateInstallUrl()">
+                                    oninput="updateInstallUrl()"
+                                    value="{{ 'mongodb+srv://' + user + ':' + passw + '@' + cluster + '.mongodb.net' if user and passw and cluster else '' }}">
                             </div>
                             <div class="help-text">
                                 <i class="fas fa-info-circle me-1"></i>
@@ -344,7 +345,7 @@
                         </div>
 
                         <div class="mt-4">
-                            <a href="/manage" class="btn btn-primary w-100 mb-2">
+                            <a href="/manage" class="btn btn-primary w-100 mb-2" id="manageLink">
                                 <i class="fas fa-plus me-2"></i>
                                 Add Your First Content
                             </a>
@@ -410,6 +411,15 @@
                     const installUrl = `${host}/${user}/${passw}/${cluster}/manifest.json`;
 
                     document.getElementById('installUrl').textContent = installUrl;
+
+                    // Store the parsed values for use in manage page
+                    localStorage.setItem('mongoUser', user);
+                    localStorage.setItem('mongoPassw', passw);
+                    localStorage.setItem('mongoCluster', cluster);
+                    localStorage.setItem('mongoUrl', dbUrl);
+
+                    // Update manage link with current parameters
+                    updateManageLink();
                 } catch (e) {
                     console.log('Invalid URL format');
                 }
@@ -488,8 +498,37 @@
 
         // Auto-focus on input when page loads
         document.addEventListener('DOMContentLoaded', function () {
+            // If URL parameters are present, update the install URL
+            const dbUrl = document.getElementById('db_url').value;
+            if (dbUrl) {
+                updateInstallUrl();
+            }
+
+            // Update manage link with current parameters
+            updateManageLink();
+
             document.getElementById('db_url').focus();
         });
+
+        function updateManageLink() {
+            const dbUrl = document.getElementById('db_url').value;
+            if (dbUrl) {
+                try {
+                    const url = dbUrl.replace("mongodb+srv://", "");
+                    const parts = url.split('@');
+                    const credentials = parts[0].split(':');
+                    const cluster = parts[1].replace(".mongodb.net", "").split('/')[0];
+
+                    const user = credentials[0];
+                    const passw = credentials[1];
+
+                    const manageLink = document.getElementById('manageLink');
+                    manageLink.href = `/manage?user=${encodeURIComponent(user)}&passw=${encodeURIComponent(passw)}&cluster=${encodeURIComponent(cluster)}`;
+                } catch (e) {
+                    console.log('Invalid URL format');
+                }
+            }
+        }
     </script>
 </body>
 

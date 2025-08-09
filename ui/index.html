@@ -21,7 +21,6 @@
             --success-color: #28a745;
             --warning-color: #ffc107;
             --danger-color: #dc3545;
-            --info-color: #17a2b8;
         }
 
         body {
@@ -55,7 +54,7 @@
         }
 
         .main-container {
-            max-width: 1200px;
+            max-width: 800px;
             margin: 0 auto;
             padding: 0 1rem;
         }
@@ -72,40 +71,6 @@
         .card:hover {
             transform: translateY(-5px);
             box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15);
-        }
-
-        .feature-card {
-            text-align: center;
-            padding: 2rem 1.5rem;
-            height: 100%;
-        }
-
-        .feature-icon {
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto 1.5rem;
-            font-size: 2rem;
-            color: white;
-        }
-
-        .icon-primary {
-            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-        }
-
-        .icon-success {
-            background: linear-gradient(135deg, var(--success-color), #20c997);
-        }
-
-        .icon-info {
-            background: linear-gradient(135deg, var(--info-color), #6f42c1);
-        }
-
-        .icon-warning {
-            background: linear-gradient(135deg, var(--warning-color), #fd7e14);
         }
 
         .btn {
@@ -133,22 +98,6 @@
         .btn-success:hover {
             transform: translateY(-2px);
             box-shadow: 0 5px 15px rgba(40, 167, 69, 0.4);
-        }
-
-        .fade-in {
-            animation: fadeIn 0.5s ease-in;
-        }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
         }
 
         .navbar {
@@ -181,86 +130,6 @@
             background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
         }
 
-        .section-title {
-            position: relative;
-            margin-bottom: 3rem;
-        }
-
-        .section-title::after {
-            content: '';
-            position: absolute;
-            bottom: -10px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 60px;
-            height: 3px;
-            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-            border-radius: 2px;
-        }
-
-        .floating-shapes {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            pointer-events: none;
-        }
-
-        .shape {
-            position: absolute;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 50%;
-            animation: float 6s ease-in-out infinite;
-        }
-
-        .shape:nth-child(1) {
-            width: 80px;
-            height: 80px;
-            top: 20%;
-            left: 10%;
-            animation-delay: 0s;
-        }
-
-        .shape:nth-child(2) {
-            width: 60px;
-            height: 60px;
-            top: 60%;
-            right: 10%;
-            animation-delay: 2s;
-        }
-
-        .shape:nth-child(3) {
-            width: 40px;
-            height: 40px;
-            top: 40%;
-            left: 80%;
-            animation-delay: 4s;
-        }
-
-        @keyframes float {
-
-            0%,
-            100% {
-                transform: translateY(0px) rotate(0deg);
-            }
-
-            50% {
-                transform: translateY(-20px) rotate(180deg);
-            }
-        }
-
-        .usage-card {
-            border-left: 4px solid var(--primary-color);
-            transition: all 0.3s ease;
-        }
-
-        .usage-card:hover {
-            border-left-color: var(--secondary-color);
-            transform: translateX(5px);
-        }
-
         .usage-badge {
             display: inline-block;
             padding: 0.25rem 0.75rem;
@@ -277,11 +146,6 @@
 
         .badge-success {
             background: var(--success-color);
-            color: white;
-        }
-
-        .badge-warning {
-            background: var(--warning-color);
             color: white;
         }
     </style>
@@ -315,11 +179,6 @@
 
     <!-- Hero Section -->
     <section class="hero-section">
-        <div class="floating-shapes">
-            <div class="shape"></div>
-            <div class="shape"></div>
-            <div class="shape"></div>
-        </div>
         <div class="main-container">
             <div class="hero-content text-center">
                 <h1 class="display-3 fw-bold mb-4">
@@ -350,11 +209,10 @@
     <!-- Main Actions Section -->
     <section class="py-5">
         <div class="main-container">
-            <h2 class="text-center section-title">What You Can Do</h2>
             <div class="row">
                 <div class="col-md-6 mb-4">
-                    <div class="card usage-card">
-                        <div class="card-body">
+                    <div class="card">
+                        <div class="card-body text-center">
                             <div class="d-flex justify-content-between align-items-start mb-3">
                                 <h5 class="card-title">
                                     <i class="fas fa-edit me-2 text-success"></i>
@@ -362,13 +220,8 @@
                                 </h5>
                                 <span class="usage-badge badge-success">Daily Use</span>
                             </div>
-                            <p class="card-text">Add and remove movies/series from your personal library. This is where you'll spend most of your time.</p>
-                            <ul class="list-unstyled">
-                                <li><i class="fas fa-check text-success me-2"></i>Add movies with custom stream links</li>
-                                <li><i class="fas fa-check text-success me-2"></i>Add TV series and individual episodes</li>
-                                <li><i class="fas fa-check text-success me-2"></i>Remove content you no longer want</li>
-                                <li><i class="fas fa-check text-success me-2"></i>Organize your personal media library</li>
-                            </ul>
+                            <p class="card-text">Add and remove movies/series from your personal library. This is where
+                                you'll spend most of your time.</p>
                             <a href="/manage" class="btn btn-success">
                                 <i class="fas fa-edit me-2"></i>Go to Manage
                             </a>
@@ -376,8 +229,8 @@
                     </div>
                 </div>
                 <div class="col-md-6 mb-4">
-                    <div class="card usage-card">
-                        <div class="card-body">
+                    <div class="card">
+                        <div class="card-body text-center">
                             <div class="d-flex justify-content-between align-items-start mb-3">
                                 <h5 class="card-title">
                                     <i class="fas fa-cog me-2 text-primary"></i>
@@ -385,84 +238,11 @@
                                 </h5>
                                 <span class="usage-badge badge-primary">One Time</span>
                             </div>
-                            <p class="card-text">Configure your MongoDB connection and install the addon in Stremio. Only needed once.</p>
-                            <ul class="list-unstyled">
-                                <li><i class="fas fa-check text-success me-2"></i>Connect to your MongoDB database</li>
-                                <li><i class="fas fa-check text-success me-2"></i>Generate installation URL for Stremio</li>
-                                <li><i class="fas fa-check text-success me-2"></i>Install the addon in Stremio</li>
-                                <li><i class="fas fa-check text-success me-2"></i>Ready to start adding content</li>
-                            </ul>
+                            <p class="card-text">Configure your MongoDB connection and install the addon in Stremio.
+                                Only needed once.</p>
                             <a href="/configure" class="btn btn-primary">
                                 <i class="fas fa-cog me-2"></i>Go to Setup
                             </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- How It Works -->
-    <section class="py-5 bg-light">
-        <div class="main-container">
-            <h2 class="text-center section-title">How It Works</h2>
-            <div class="row">
-                <div class="col-md-4 mb-4">
-                    <div class="card text-center h-100">
-                        <div class="card-body">
-                            <div class="feature-icon icon-primary mb-3">
-                                <i class="fas fa-1"></i>
-                            </div>
-                            <h5 class="card-title">Setup (One Time)</h5>
-                            <p class="card-text">Create a MongoDB database and configure your connection. Install the addon in Stremio.</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-4 mb-4">
-                    <div class="card text-center h-100">
-                        <div class="card-body">
-                            <div class="feature-icon icon-success mb-3">
-                                <i class="fas fa-2"></i>
-                            </div>
-                            <h5 class="card-title">Add Content (Daily)</h5>
-                            <p class="card-text">Add movies and series with their stream links to your database using the Manage page.</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-4 mb-4">
-                    <div class="card text-center h-100">
-                        <div class="card-body">
-                            <div class="feature-icon icon-info mb-3">
-                                <i class="fas fa-3"></i>
-                            </div>
-                            <h5 class="card-title">Enjoy (Always)</h5>
-                            <p class="card-text">Access your personal library in Stremio. Your content appears alongside other addons.</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Quick Access -->
-    <section class="py-5">
-        <div class="main-container">
-            <div class="card">
-                <div class="card-body text-center">
-                    <h4 class="mb-3">Ready to get started?</h4>
-                    <p class="text-muted mb-4">Choose what you want to do next</p>
-                    <div class="row justify-content-center">
-                        <div class="col-md-4 mb-3">
-                            <a href="/manage" class="btn btn-success btn-lg w-100">
-                                <i class="fas fa-edit me-2"></i>Manage Content
-                            </a>
-                            <small class="text-muted d-block mt-2">Add/remove movies and series</small>
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            <a href="/configure" class="btn btn-primary btn-lg w-100">
-                                <i class="fas fa-cog me-2"></i>Setup Addon
-                            </a>
-                            <small class="text-muted d-block mt-2">First time setup only</small>
                         </div>
                     </div>
                 </div>
@@ -491,30 +271,6 @@
 
     <!-- Load JavaScript -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        // Add intersection observer for fade-in animations
-        const observerOptions = {
-            threshold: 0.1,
-            rootMargin: '0px 0px -50px 0px'
-        };
-
-        const observer = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    entry.target.style.opacity = '1';
-                    entry.target.style.transform = 'translateY(0)';
-                }
-            });
-        }, observerOptions);
-
-        // Observe all cards for animation
-        document.querySelectorAll('.card').forEach(card => {
-            card.style.opacity = '0';
-            card.style.transform = 'translateY(20px)';
-            card.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
-            observer.observe(card);
-        });
-    </script>
 </body>
 
 </html>

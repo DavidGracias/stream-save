@@ -356,7 +356,8 @@
                                         <i class="fas fa-database"></i>
                                     </span>
                                     <input type="text" name="db_url" id="db_url" class="form-control"
-                                        placeholder="mongodb+srv://user:pass@cluster.mongodb.net" required>
+                                        placeholder="mongodb+srv://user:pass@cluster.mongodb.net" required
+                                        value="{{ 'mongodb+srv://' + user + ':' + passw + '@' + cluster + '.mongodb.net' if user and passw and cluster else '' }}">
                                 </div>
                             </div>
                             <div class="col-md-6 mb-3">
@@ -402,10 +403,21 @@
                         <input type="hidden" name="type" id="contentType" value="movie">
 
                         <div class="d-flex justify-content-between">
-                            <button type="button" class="btn btn-outline-secondary" onclick="showHelp()">
-                                <i class="fas fa-question-circle me-1"></i>
-                                Need Help?
-                            </button>
+                            <div>
+                                <button type="button" class="btn btn-outline-secondary me-2" onclick="showHelp()">
+                                    <i class="fas fa-question-circle me-1"></i>
+                                    Need Help?
+                                </button>
+                                <button type="button" class="btn btn-outline-primary me-2" id="setupBtn"
+                                    onclick="goToSetup()">
+                                    <i class="fas fa-cog me-1"></i>
+                                    Setup
+                                </button>
+                                <button type="button" class="btn btn-outline-warning" onclick="clearMongoUrl()">
+                                    <i class="fas fa-eraser me-1"></i>
+                                    Clear URL
+                                </button>
+                            </div>
                             <button type="submit" class="btn btn-success" id="submitBtn">
                                 <i class="fas fa-plus me-2"></i>
                                 Add Content
@@ -423,7 +435,8 @@
                                         <i class="fas fa-database"></i>
                                     </span>
                                     <input type="text" name="remove_db_url" id="remove_db_url" class="form-control"
-                                        placeholder="mongodb+srv://user:pass@cluster.mongodb.net" required>
+                                        placeholder="mongodb+srv://user:pass@cluster.mongodb.net" required
+                                        value="{{ 'mongodb+srv://' + user + ':' + passw + '@' + cluster + '.mongodb.net' if user and passw and cluster else '' }}">
                                 </div>
                             </div>
                             <div class="col-md-6 mb-3">
@@ -442,10 +455,21 @@
                         <input type="hidden" name="remove_type" id="removeContentType" value="movie">
 
                         <div class="d-flex justify-content-between">
-                            <button type="button" class="btn btn-outline-secondary" onclick="showHelp()">
-                                <i class="fas fa-question-circle me-1"></i>
-                                Need Help?
-                            </button>
+                            <div>
+                                <button type="button" class="btn btn-outline-secondary me-2" onclick="showHelp()">
+                                    <i class="fas fa-question-circle me-1"></i>
+                                    Need Help?
+                                </button>
+                                <button type="button" class="btn btn-outline-primary me-2"
+                                    onclick="window.location.href='/configure'">
+                                    <i class="fas fa-cog me-1"></i>
+                                    Setup
+                                </button>
+                                <button type="button" class="btn btn-outline-warning" onclick="clearMongoUrl()">
+                                    <i class="fas fa-eraser me-1"></i>
+                                    Clear URL
+                                </button>
+                            </div>
                             <button type="submit" class="btn btn-danger" id="removeBtn">
                                 <i class="fas fa-trash me-2"></i>
                                 Remove Content
@@ -467,35 +491,7 @@
             </div>
         </div>
 
-        <!-- Quick Actions -->
-        <div class="card mt-4">
-            <div class="card-body">
-                <h5 class="card-title">
-                    <i class="fas fa-bolt me-2"></i>
-                    Quick Actions
-                </h5>
-                <div class="row">
-                    <div class="col-md-4 mb-2">
-                        <a href="/configure" class="btn btn-outline-primary w-100">
-                            <i class="fas fa-cog me-2"></i>
-                            Configure Addon
-                        </a>
-                    </div>
-                    <div class="col-md-4 mb-2">
-                        <a href="/view" class="btn btn-outline-info w-100">
-                            <i class="fas fa-eye me-2"></i>
-                            View Content
-                        </a>
-                    </div>
-                    <div class="col-md-4 mb-2">
-                        <a href="/help" class="btn btn-outline-secondary w-100">
-                            <i class="fas fa-question-circle me-2"></i>
-                            Get Help
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
+
     </div>
 
     <!-- Help Modal -->
@@ -578,6 +574,37 @@
             modal.show();
         }
 
+        function clearMongoUrl() {
+            localStorage.removeItem('mongoUser');
+            localStorage.removeItem('mongoPassw');
+            localStorage.removeItem('mongoCluster');
+            localStorage.removeItem('mongoUrl');
+            document.getElementById('db_url').value = '';
+            document.getElementById('remove_db_url').value = '';
+            alert('MongoDB URL cleared from memory');
+        }
+
+        function goToSetup() {
+            const dbUrl = document.getElementById('db_url').value;
+            if (dbUrl) {
+                try {
+                    const url = dbUrl.replace("mongodb+srv://", "");
+                    const parts = url.split('@');
+                    const credentials = parts[0].split(':');
+                    const cluster = parts[1].replace(".mongodb.net", "").split('/')[0];
+
+                    const user = credentials[0];
+                    const passw = credentials[1];
+
+                    window.location.href = `/configure?user=${encodeURIComponent(user)}&passw=${encodeURIComponent(passw)}&cluster=${encodeURIComponent(cluster)}`;
+                } catch (e) {
+                    window.location.href = '/configure';
+                }
+            } else {
+                window.location.href = '/configure';
+            }
+        }
+
         // Form submission handling
         document.getElementById('manageForm').addEventListener('submit', function (e) {
             e.preventDefault();
@@ -640,6 +667,31 @@
 
         // Auto-focus on first input when page loads
         document.addEventListener('DOMContentLoaded', function () {
+            // Check if URL parameters are present (takes priority over localStorage)
+            const urlParams = new URLSearchParams(window.location.search);
+            const user = urlParams.get('user');
+            const passw = urlParams.get('passw');
+            const cluster = urlParams.get('cluster');
+
+            if (user && passw && cluster) {
+                const mongoUrl = `mongodb+srv://${user}:${passw}@${cluster}.mongodb.net`;
+                document.getElementById('db_url').value = mongoUrl;
+                document.getElementById('remove_db_url').value = mongoUrl;
+
+                // Store in localStorage for future use
+                localStorage.setItem('mongoUser', user);
+                localStorage.setItem('mongoPassw', passw);
+                localStorage.setItem('mongoCluster', cluster);
+                localStorage.setItem('mongoUrl', mongoUrl);
+            } else {
+                // Try to populate MongoDB URL from localStorage (set by configure page)
+                const storedUrl = localStorage.getItem('mongoUrl');
+                if (storedUrl) {
+                    document.getElementById('db_url').value = storedUrl;
+                    document.getElementById('remove_db_url').value = storedUrl;
+                }
+            }
+
             document.getElementById('db_url').focus();
         });
     </script>
