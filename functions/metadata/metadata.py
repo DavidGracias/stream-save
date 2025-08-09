@@ -125,14 +125,18 @@ class Metadata:
         return streams
 
     def make_meta(self, item):
+        # Lambda function for safe field access with defaults
+        safe_get = lambda key, default: item.get(key, default)
+        
         meta = dict((key, item[key])
                     for key in item.keys() if key in self.OPTIONAL_META)
-        meta['_id'] = item['id']
-        meta['id'] = item['id']
-        meta['type'] = item['type']
-        meta['name'] = item['name']
-        meta['genres'] = item['genres']
-        meta['poster'] = item['poster']
+        
+        meta['_id'] = safe_get('id', '')
+        meta['id'] = safe_get('id', '')
+        meta['type'] = safe_get('type', 'movie')
+        meta['name'] = safe_get('name', 'Unknown Title')
+        meta['genres'] = safe_get('genres', [])
+        meta['poster'] = safe_get('poster', '')
         return meta
 
     def _call(self, res):

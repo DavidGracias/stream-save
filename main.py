@@ -5,6 +5,31 @@ from functions.manage import addMovie, addSeries, removeMovie, removeSeries
 from functions.metadata.metadata import Metadata
 from pymongo import MongoClient
 import requests
+import os
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv('mongodb.env', override=True)
+MONGO_URL = os.getenv('MONGO_URL')
+print(f"Loaded MONGO_URL from env: {MONGO_URL}")
+
+# Parse MongoDB URL to extract credentials for templates
+def parse_mongo_url():
+    if MONGO_URL:
+        try:
+            url = MONGO_URL.replace("mongodb+srv://", "")
+            parts = url.split('@')
+            credentials = parts[0].split(':')
+            cluster = parts[1].replace(".mongodb.net", "").split('/')[0]
+            
+            return {
+                'user': credentials[0],
+                'passw': credentials[1],
+                'cluster': cluster
+            }
+        except:
+            return {'user': '', 'passw': '', 'cluster': ''}
+    return {'user': '', 'passw': '', 'cluster': ''}
 
 BEST_TRACKERS = "https://raw.githubusercontent.com/ngosang/trackerslist/master/trackers_best.txt"
 
@@ -16,8 +41,7 @@ MANIFEST = {
 
     'resources': [
         'catalog',
-        {'name': 'stream', 'types': [
-            'movie', 'series'], 'idPrefixes': ['tt']}
+        {'name': 'stream', 'types': ['movie', 'series'], 'idPrefixes': ['tt']}
     ],
 
     "types": ["movie", "series", "other"],
@@ -88,16 +112,16 @@ def stream(user, passw, cluster, type, id):
     return respond_with(streams)
 
 
-@app.route('/<user>/<passw>/<cluster>/catalog/<type>/<id>.json')
-def addon_catalog(user, passw, cluster, type, id):
+@app.route('/<user>/<passw>/<cluster>/catalog/<entity_type>/<id>.json')
+def addon_catalog(user, passw, cluster, entity_type, id):
     db_url = f"mongodb+srv://{user}:{passw}@{cluster}.mongodb.net"
     client = MongoClient(db_url)
-    if type not in MANIFEST["types"]:
+    if entity_type not in MANIFEST["types"]:
         abort(404)
 
-    if type == 'movie':
+    if entity_type == 'movie':
         catalog = movieCatalog(client)
-    elif type == 'series':
+    elif entity_type == 'series':
         catalog = seriesCatalog(client)
     else:
         abort(404)
@@ -106,6 +130,9 @@ def addon_catalog(user, passw, cluster, type, id):
     metaPreviews = {
 
     }
+    print("catalog is about to be printed")
+    # Print the type and repr of catalog for debugging, since catalog is not JSON serializable
+    print("catalog type:", type(catalog), "repr:", repr(catalog))
 
     c = catalog.full()
 
@@ -116,11 +143,24 @@ def addon_catalog(user, passw, cluster, type, id):
 
     return respond_with(metaPreviews)
 
+@app.route('/addon_catalog/<type>', methods=['GET'])
+def addon_catalog_redirect(type):
+    if type not in ['movie', 'series']:
+        abort(404)
+
+    # Get user, passw, cluster from env or use default values ""
+    mongo_creds = parse_mongo_url()
+    user = mongo_creds.get('user', '')
+    passw = mongo_creds.get('passw', '')
+    cluster = mongo_creds.get('cluster', '')
+    return redirect(f"/{user}/{passw}/{cluster}/catalog/{type}/id.json")
+
 
 @app.route('/configure', methods=['GET', 'POST'])
 def configure():
     if request.method == 'POST':
-        url = request.form['db_url']
+        # Use environment variable if set, otherwise use form field
+        url = MONGO_URL if MONGO_URL else request.form['db_url']
         url = url.replace("mongodb+srv://", "")
         url = url.split('@')
         user = url[0].split(':')[0]
@@ -133,17 +173,26 @@ def configure():
         print(hostUrl)
         return redirect(f"stremio://{hostUrl}{user}/{passw}/{cluster}/manifest.json")
     else:
-        # Get URL parameters for auto-filling
+        # Get URL parameters for auto-filling, fallback to environment variable
         user = request.args.get('user', '')
         passw = request.args.get('passw', '')
         cluster = request.args.get('cluster', '')
+        
+        # If no URL parameters, use environment variable
+        if not user and not passw and not cluster:
+            mongo_creds = parse_mongo_url()
+            user = mongo_creds['user']
+            passw = mongo_creds['passw']
+            cluster = mongo_creds['cluster']
+            
         return render_template("configure.html", user=user, passw=passw, cluster=cluster)
 
 
 @app.route('/manage', methods=['GET', 'POST'])
 def manage():
     if request.method == 'POST':
-        db_url = request.form['db_url']
+        # Use environment variable if set, otherwise use form field
+        db_url = MONGO_URL if MONGO_URL else request.form['db_url']
         options = request.form['option']
         type = request.form['type']
         imdbID = request.form['imdbID']
@@ -151,6 +200,11 @@ def manage():
             stream = request.form['stream']
         else:
             stream = None
+
+        # Debug: Print the received URL
+        print(f"Using db_url: {db_url}")
+        print(f"Options: {options}, Type: {type}, IMDB ID: {imdbID}")
+        print(f"Environment MONGO_URL: {MONGO_URL}")
 
         try:
             if options == 'add':
@@ -165,12 +219,21 @@ def manage():
                     removeSeries(imdbID, db_url)
             return "Success"
         except Exception as e:
+            print(f"Error details: {str(e)}")
             return f"Failure, {str(e)}"
     else:
-        # Get URL parameters for auto-filling
+        # Get URL parameters for auto-filling, fallback to environment variable
         user = request.args.get('user', '')
         passw = request.args.get('passw', '')
         cluster = request.args.get('cluster', '')
+        
+        # If no URL parameters, use environment variable
+        if not user and not passw and not cluster:
+            mongo_creds = parse_mongo_url()
+            user = mongo_creds['user']
+            passw = mongo_creds['passw']
+            cluster = mongo_creds['cluster']
+            
         return render_template("manage.html", user=user, passw=passw, cluster=cluster)
     
 @app.route('/<user>/<passw>/<cluster>/configure', methods=['GET', 'POST'])
@@ -178,37 +241,25 @@ def addon_config_redirect(user, passw, cluster):
     return redirect(f'/manage?user={user}&passw={passw}&cluster={cluster}')
 
 
-@app.route('/view', methods=['GET'])
+@app.route('/view')
 def view_content():
-    return render_template("view.html")
-
-
-@app.route('/settings', methods=['GET'])
-def settings():
-    return render_template("settings.html")
-
-
-@app.route('/help', methods=['GET'])
-def help_page():
-    return render_template("help.html")
-
+    # Get URL parameters for auto-filling, fallback to environment variable
+    user = request.args.get('user', '')
+    passw = request.args.get('passw', '')
+    cluster = request.args.get('cluster', '')
+    
+    # If no URL parameters, use environment variable
+    if not user and not passw and not cluster:
+        mongo_creds = parse_mongo_url()
+        user = mongo_creds['user']
+        passw = mongo_creds['passw']
+        cluster = mongo_creds['cluster']
+        
+    return render_template("view.html", user=user, passw=passw, cluster=cluster)
 
 @app.route('/')
 def default():
     return render_template("index.html")
-
-@app.route('/example')
-def example():
-    """Example route showing how to use URL parameters"""
-    return """
-    <h1>URL Parameter Examples</h1>
-    <p>You can now pass MongoDB credentials via URL parameters:</p>
-    <ul>
-        <li><a href="/configure?user=myuser&passw=mypass&cluster=mycluster">Configure with parameters</a></li>
-        <li><a href="/manage?user=myuser&passw=mypass&cluster=mycluster">Manage with parameters</a></li>
-    </ul>
-    <p>This will auto-fill the MongoDB URL fields on both pages.</p>
-    """
 
 
 if __name__ == '__main__':

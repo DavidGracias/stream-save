@@ -6,6 +6,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Manage Content - Stream Save</title>
 
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon"
+        href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💾</text></svg>">
+
     <!-- Preload critical resources -->
     <link rel="preload" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" as="style">
     <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" as="style">
@@ -289,6 +293,9 @@
                     <li class="nav-item">
                         <a class="nav-link active" href="/manage"><i class="fas fa-edit me-1"></i>Manage</a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/view" id="viewLink"><i class="fas fa-eye me-1"></i>View</a>
+                    </li>
                 </ul>
             </div>
         </div>
@@ -337,11 +344,15 @@
                     <!-- Help Box -->
                     <div class="help-box">
                         <h6><i class="fas fa-info-circle me-2"></i>Important Notes:</h6>
-                        <ul class="mb-0">
-                            <li>For single episodes, use format: <code>imdbid:season:episode</code> (e.g.,
-                                <code>tt0944947:1:8</code>)
+                        <ul class="mb-0" id="helpNotes">
+                            <li id="movieNote">For movies, use the IMDB ID (e.g., <code>tt0468569</code> for The Dark
+                                Knight)</li>
+                            <li id="seriesNote" style="display: none;">For entire series, use the IMDB ID (e.g.,
+                                <code>tt0944947</code> for Game of Thrones)
                             </li>
-                            <li>For entire series, just use the IMDB ID (e.g., <code>tt0944947</code>)</li>
+                            <li id="episodeNote" style="display: none;">For single episodes, use format:
+                                <code>imdbid:season:episode</code> (e.g., <code>tt0944947:1:8</code> for GoT S1E8)
+                            </li>
                             <li>Stream links can be magnet links, direct URLs, or YouTube links</li>
                         </ul>
                     </div>
@@ -349,7 +360,7 @@
                     <!-- Add Content Form -->
                     <div id="addForm" class="form-section active">
                         <div class="row">
-                            <div class="col-md-6 mb-3">
+                            <div class="col-md-6 mb-3" id="mongoUrlField">
                                 <label for="db_url" class="form-label">MongoDB URL</label>
                                 <div class="input-group">
                                     <span class="input-group-text">
@@ -359,6 +370,7 @@
                                         placeholder="mongodb+srv://user:pass@cluster.mongodb.net" required
                                         value="{{ 'mongodb+srv://' + user + ':' + passw + '@' + cluster + '.mongodb.net' if user and passw and cluster else '' }}">
                                 </div>
+                                <small class="text-muted">Using environment variable if available</small>
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label for="imdbID" class="form-label">IMDB ID</label>
@@ -408,17 +420,8 @@
                                     <i class="fas fa-question-circle me-1"></i>
                                     Need Help?
                                 </button>
-                                <button type="button" class="btn btn-outline-primary me-2" id="setupBtn"
-                                    onclick="goToSetup()">
-                                    <i class="fas fa-cog me-1"></i>
-                                    Setup
-                                </button>
-                                <button type="button" class="btn btn-outline-warning" onclick="clearMongoUrl()">
-                                    <i class="fas fa-eraser me-1"></i>
-                                    Clear URL
-                                </button>
                             </div>
-                            <button type="submit" class="btn btn-success" id="submitBtn">
+                            <button type="button" class="btn btn-success" id="submitBtn" onclick="submitForm('add')">
                                 <i class="fas fa-plus me-2"></i>
                                 Add Content
                             </button>
@@ -428,7 +431,7 @@
                     <!-- Remove Content Form -->
                     <div id="removeForm" class="form-section">
                         <div class="row">
-                            <div class="col-md-6 mb-3">
+                            <div class="col-md-6 mb-3" id="removeMongoUrlField">
                                 <label for="remove_db_url" class="form-label">MongoDB URL</label>
                                 <div class="input-group">
                                     <span class="input-group-text">
@@ -438,6 +441,7 @@
                                         placeholder="mongodb+srv://user:pass@cluster.mongodb.net" required
                                         value="{{ 'mongodb+srv://' + user + ':' + passw + '@' + cluster + '.mongodb.net' if user and passw and cluster else '' }}">
                                 </div>
+                                <small class="text-muted">Using environment variable if available</small>
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label for="remove_imdbID" class="form-label">IMDB ID</label>
@@ -460,17 +464,8 @@
                                     <i class="fas fa-question-circle me-1"></i>
                                     Need Help?
                                 </button>
-                                <button type="button" class="btn btn-outline-primary me-2"
-                                    onclick="window.location.href='/configure'">
-                                    <i class="fas fa-cog me-1"></i>
-                                    Setup
-                                </button>
-                                <button type="button" class="btn btn-outline-warning" onclick="clearMongoUrl()">
-                                    <i class="fas fa-eraser me-1"></i>
-                                    Clear URL
-                                </button>
                             </div>
-                            <button type="submit" class="btn btn-danger" id="removeBtn">
+                            <button type="button" class="btn btn-danger" id="removeBtn" onclick="submitForm('remove')">
                                 <i class="fas fa-trash me-2"></i>
                                 Remove Content
                             </button>
@@ -567,6 +562,25 @@
             // Update hidden inputs
             document.getElementById('contentType').value = type;
             document.getElementById('removeContentType').value = type;
+
+            // Update help notes based on content type
+            updateHelpNotes(type);
+        }
+
+        function updateHelpNotes(contentType) {
+            const movieNote = document.getElementById('movieNote');
+            const seriesNote = document.getElementById('seriesNote');
+            const episodeNote = document.getElementById('episodeNote');
+
+            if (contentType === 'movie') {
+                movieNote.style.display = 'block';
+                seriesNote.style.display = 'none';
+                episodeNote.style.display = 'none';
+            } else if (contentType === 'series') {
+                movieNote.style.display = 'none';
+                seriesNote.style.display = 'block';
+                episodeNote.style.display = 'block';
+            }
         }
 
         function showHelp() {
@@ -605,11 +619,8 @@
             }
         }
 
-        // Form submission handling
-        document.getElementById('manageForm').addEventListener('submit', function (e) {
-            e.preventDefault();
-
-            const submitBtn = document.getElementById('submitBtn');
+        function submitForm(action) {
+            const submitBtn = action === 'add' ? document.getElementById('submitBtn') : document.getElementById('removeBtn');
             const originalText = submitBtn.innerHTML;
 
             // Show loading state
@@ -620,8 +631,31 @@
             document.getElementById('successMessage').style.display = 'none';
             document.getElementById('errorMessage').style.display = 'none';
 
+            // Prepare form data
+            const formData = new FormData();
+
+            if (action === 'add') {
+                // Add form data
+                formData.append('option', 'add');
+                formData.append('type', currentContentType);
+                formData.append('db_url', document.getElementById('db_url').value);
+                formData.append('imdbID', document.getElementById('imdbID').value);
+                formData.append('stream', document.getElementById('stream').value);
+            } else {
+                // Remove form data
+                formData.append('remove_option', 'remove');
+                formData.append('remove_type', currentContentType);
+                formData.append('remove_db_url', document.getElementById('remove_db_url').value);
+                formData.append('remove_imdbID', document.getElementById('remove_imdbID').value);
+            }
+
+            // Debug: Log what we're sending
+            console.log('Sending form data:');
+            for (let [key, value] of formData.entries()) {
+                console.log(`${key}: ${value}`);
+            }
+
             // Submit form
-            const formData = new FormData(this);
             fetch('/manage', {
                 method: 'POST',
                 body: formData
@@ -629,8 +663,23 @@
                 .then(response => response.text())
                 .then(data => {
                     if (data.includes('Success')) {
-                        showMessage('success', 'Content added successfully!');
-                        this.reset();
+                        const actionText = action === 'add' ? 'added' : 'removed';
+                        showMessage('success', `Content ${actionText} successfully!`);
+
+                        // Reset form fields but keep MongoDB URL
+                        const dbUrl = document.getElementById('db_url').value;
+                        const removeDbUrl = document.getElementById('remove_db_url').value;
+
+                        if (action === 'add') {
+                            document.getElementById('imdbID').value = '';
+                            document.getElementById('stream').value = '';
+                        } else {
+                            document.getElementById('remove_imdbID').value = '';
+                        }
+
+                        // Keep MongoDB URLs
+                        document.getElementById('db_url').value = dbUrl;
+                        document.getElementById('remove_db_url').value = removeDbUrl;
                     } else {
                         showMessage('error', data);
                     }
@@ -642,7 +691,7 @@
                     submitBtn.innerHTML = originalText;
                     submitBtn.disabled = false;
                 });
-        });
+        }
 
         function showMessage(type, text) {
             const successMsg = document.getElementById('successMessage');
@@ -652,6 +701,9 @@
                 document.getElementById('successText').textContent = text;
                 successMsg.style.display = 'block';
                 errorMsg.style.display = 'none';
+
+                // Show popup alert for success
+                showSuccessPopup(text);
             } else {
                 document.getElementById('errorText').textContent = text;
                 errorMsg.style.display = 'block';
@@ -663,6 +715,49 @@
                 successMsg.style.display = 'none';
                 errorMsg.style.display = 'none';
             }, 5000);
+        }
+
+        function showSuccessPopup(message) {
+            // Create modal HTML
+            const modalHtml = `
+                <div class="modal fade" id="successModal" tabindex="-1" aria-labelledby="successModalLabel" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content">
+                            <div class="modal-header bg-success text-white">
+                                <h5 class="modal-title" id="successModalLabel">
+                                    <i class="fas fa-check-circle me-2"></i>Success!
+                                </h5>
+                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body text-center">
+                                <i class="fas fa-check-circle text-success" style="font-size: 3rem; margin-bottom: 1rem;"></i>
+                                <p class="mb-0">${message}</p>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-success" data-bs-dismiss="modal">OK</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Remove existing modal if any
+            const existingModal = document.getElementById('successModal');
+            if (existingModal) {
+                existingModal.remove();
+            }
+
+            // Add modal to body
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+            // Show modal
+            const modal = new bootstrap.Modal(document.getElementById('successModal'));
+            modal.show();
+
+            // Auto-hide after 3 seconds
+            setTimeout(() => {
+                modal.hide();
+            }, 3000);
         }
 
         // Auto-focus on first input when page loads
@@ -683,14 +778,38 @@
                 localStorage.setItem('mongoPassw', passw);
                 localStorage.setItem('mongoCluster', cluster);
                 localStorage.setItem('mongoUrl', mongoUrl);
+
+                // Update view link with credentials
+                const viewLink = document.getElementById('viewLink');
+                if (viewLink) {
+                    viewLink.href = `/view?user=${encodeURIComponent(user)}&passw=${encodeURIComponent(passw)}&cluster=${encodeURIComponent(cluster)}`;
+                }
             } else {
                 // Try to populate MongoDB URL from localStorage (set by configure page)
                 const storedUrl = localStorage.getItem('mongoUrl');
                 if (storedUrl) {
                     document.getElementById('db_url').value = storedUrl;
                     document.getElementById('remove_db_url').value = storedUrl;
+
+                    // Try to parse stored URL for view link
+                    try {
+                        const cleanUrl = storedUrl.replace("mongodb+srv://", "");
+                        const parts = cleanUrl.split('@');
+                        const credentials = parts[0].split(':');
+                        const cluster = parts[1].replace(".mongodb.net", "").split('/')[0];
+
+                        const viewLink = document.getElementById('viewLink');
+                        if (viewLink) {
+                            viewLink.href = `/view?user=${encodeURIComponent(credentials[0])}&passw=${encodeURIComponent(credentials[1])}&cluster=${encodeURIComponent(cluster)}`;
+                        }
+                    } catch (e) {
+                        console.warn('Could not parse stored MongoDB URL for view link');
+                    }
                 }
             }
+
+            // Initialize help notes for default content type (movie)
+            updateHelpNotes('movie');
 
             document.getElementById('db_url').focus();
         });

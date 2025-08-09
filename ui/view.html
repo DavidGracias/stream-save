@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>View Content - Stream Save</title>
+    <link rel="icon" type="image/x-icon"
+        href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💾</text></svg>">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #667eea;
+            --secondary-color: #764ba2;
+            --success-color: #28a745;
+            --danger-color: #dc3545;
+            --warning-color: #ffc107;
+            --info-color: #17a2b8;
+        }
+
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .navbar {
+            background: rgba(255, 255, 255, 0.95) !important;
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+        }
+
+        .navbar-brand {
+            color: var(--primary-color) !important;
+            font-weight: bold;
+        }
+
+        .nav-link {
+            color: var(--primary-color) !important;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            border-radius: 8px;
+            margin: 0 2px;
+            padding: 8px 12px !important;
+        }
+
+        .nav-link:hover {
+            color: var(--secondary-color) !important;
+            background: rgba(102, 126, 234, 0.1);
+        }
+
+        .nav-link.active {
+            color: white !important;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+        }
+
+        .main-container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            margin: 2rem auto;
+            padding: 2rem;
+            max-width: 1200px;
+        }
+
+        .search-container {
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            border-radius: 15px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+        }
+
+        .table-container {
+            background: white;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .table {
+            margin-bottom: 0;
+        }
+
+        .table thead th {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            border: none;
+            font-weight: 600;
+            padding: 1rem;
+        }
+
+        .table tbody tr {
+            transition: all 0.3s ease;
+        }
+
+        .table tbody tr:hover {
+            background: rgba(102, 126, 234, 0.05);
+            transform: translateY(-1px);
+        }
+
+        .table tbody td {
+            padding: 1rem;
+            border: none;
+            border-bottom: 1px solid #f8f9fa;
+        }
+
+        .badge {
+            font-size: 0.75rem;
+            padding: 0.5rem 0.75rem;
+            border-radius: 20px;
+        }
+
+        .badge-movie {
+            background: linear-gradient(135deg, var(--success-color), #20c997);
+            color: white;
+        }
+
+        .badge-series {
+            background: linear-gradient(135deg, var(--info-color), #6f42c1);
+            color: white;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 3rem;
+            color: var(--primary-color);
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(102, 126, 234, 0.3);
+            border-radius: 50%;
+            border-top-color: var(--primary-color);
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: #6c757d;
+        }
+
+        .empty-state i {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        .stats-card {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            border-radius: 15px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .stats-card-compact {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            border-radius: 10px;
+            padding: 0.75rem;
+            margin-bottom: 0;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            height: 80px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .stats-number {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+
+        .stats-number-compact {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-bottom: 0.25rem;
+        }
+
+        .stats-label {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+
+        .stats-label-compact {
+            font-size: 0.75rem;
+            opacity: 0.9;
+        }
+
+        .stats-container {
+            display: flex;
+            justify-content: space-between;
+            gap: 1rem;
+            flex-wrap: nowrap;
+        }
+
+        .stats-container .stats-card-compact {
+            width: calc(25% - 0.75rem);
+            min-width: 120px;
+        }
+
+        .search-input {
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            padding: 0.75rem 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .search-input:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        }
+
+        .filter-buttons .btn {
+            border-radius: 20px;
+            padding: 0.5rem 1.5rem;
+            margin: 0.25rem;
+            transition: all 0.3s ease;
+        }
+
+        .filter-buttons .btn.active {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            border-color: var(--primary-color);
+            color: white;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-light shadow-sm">
+        <div class="container">
+            <a class="navbar-brand fw-bold" href="/">
+                <i class="fas fa-save me-2"></i>Stream Save
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/"><i class="fas fa-home me-1"></i>Home</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/configure"><i class="fas fa-cog me-1"></i>Setup</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/manage"><i class="fas fa-edit me-1"></i>Manage</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/view"><i class="fas fa-eye me-1"></i>View</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="main-container fade-in">
+            <div class="row mb-4">
+                <div class="col-12">
+                    <h1 class="text-center mb-3">
+                        <i class="fas fa-list me-2"></i>Your Content Library
+                    </h1>
+                    <p class="text-center text-muted mb-4">
+                        Browse and search through all your saved movies and series
+                    </p>
+                </div>
+            </div>
+
+            <!-- Stats Cards -->
+            <div id="statsCards"
+                style="display: none; display: flex; justify-content: space-between; gap: 1rem; margin-bottom: 1.5rem;">
+                <div class="stats-card-compact" style="width: 23%; text-align: center;">
+                    <div class="stats-number-compact" id="totalCount">0</div>
+                    <div class="stats-label-compact">Total Items</div>
+                </div>
+                <div class="stats-card-compact" style="width: 23%; text-align: center;">
+                    <div class="stats-number-compact" id="movieCount">0</div>
+                    <div class="stats-label-compact">Movies</div>
+                </div>
+                <div class="stats-card-compact" style="width: 23%; text-align: center;">
+                    <div class="stats-number-compact" id="seriesCount">0</div>
+                    <div class="stats-label-compact">Series</div>
+                </div>
+                <div class="stats-card-compact" style="width: 23%; text-align: center;">
+                    <div class="stats-number-compact" id="filteredCount">0</div>
+                    <div class="stats-label-compact">Showing</div>
+                </div>
+            </div>
+
+            <!-- Search and Filter -->
+            <div class="search-container">
+                <div class="row align-items-center">
+                    <div class="col-md-6 mb-3">
+                        <div class="input-group">
+                            <span class="input-group-text">
+                                <i class="fas fa-search"></i>
+                            </span>
+                            <input type="text" class="form-control search-input" id="searchInput"
+                                placeholder="Search by title, IMDB ID, or type...">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="filter-buttons text-end">
+                            <button class="btn btn-outline-primary" data-filter="all">
+                                <i class="fas fa-list me-1"></i>All
+                            </button>
+                            <button class="btn btn-outline-success" data-filter="movie">
+                                <i class="fas fa-film me-1"></i>Movies
+                            </button>
+                            <button class="btn btn-outline-info" data-filter="series">
+                                <i class="fas fa-tv me-1"></i>Series
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Content Table -->
+            <div class="table-container">
+                <div id="loadingState" class="loading">
+                    <div class="spinner"></div>
+                    <p class="mt-3">Loading your content...</p>
+                </div>
+
+                <div id="emptyState" class="empty-state" style="display: none;">
+                    <i class="fas fa-inbox"></i>
+                    <h4>No Content Found</h4>
+                    <p>You haven't added any movies or series yet.</p>
+                    <a href="/manage" class="btn btn-primary">
+                        <i class="fas fa-plus me-1"></i>Add Your First Content
+                    </a>
+                </div>
+
+                <div id="tableContent" style="display: none;">
+                    <table class="table table-hover" id="contentTable">
+                        <thead>
+                            <tr>
+                                <th>
+                                    <i class="fas fa-sort me-1"></i>Title
+                                </th>
+                                <th>
+                                    <i class="fas fa-hashtag me-1"></i>IMDB ID
+                                </th>
+                                <th>
+                                    <i class="fas fa-tag me-1"></i>Type
+                                </th>
+                                <th>
+                                    <i class="fas fa-star me-1"></i>Rating
+                                </th>
+                                <th>
+                                    <i class="fas fa-calendar me-1"></i>Release
+                                </th>
+                                <th>
+                                    <i class="fas fa-cog me-1"></i>Actions
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody">
+                            <!-- Content will be populated here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let allContent = [];
+        let filteredContent = [];
+        let currentFilter = 'all';
+
+        // Load content on page load
+        document.addEventListener('DOMContentLoaded', function () {
+            loadContent();
+            setupEventListeners();
+        });
+
+        function setupEventListeners() {
+            // Search functionality
+            document.getElementById('searchInput').addEventListener('input', function () {
+                filterContent();
+            });
+
+            // Filter buttons
+            document.querySelectorAll('.filter-buttons .btn').forEach(btn => {
+                btn.addEventListener('click', function () {
+                    // Remove active class from all buttons
+                    document.querySelectorAll('.filter-buttons .btn').forEach(b => b.classList.remove('active'));
+                    // Add active class to clicked button
+                    this.classList.add('active');
+
+                    currentFilter = this.getAttribute('data-filter');
+                    filterContent();
+                });
+            });
+
+            // Set "All" as active by default
+            document.querySelector('[data-filter="all"]').classList.add('active');
+        }
+
+        async function loadContent() {
+            try {
+                // Get MongoDB credentials from URL parameters or template variables
+                const urlParams = new URLSearchParams(window.location.search);
+                let user = urlParams.get('user');
+                let passw = urlParams.get('passw');
+                let cluster = urlParams.get('cluster');
+
+                // If no URL parameters, try to get from template variables (set by server from env)
+                if (!user && !passw && !cluster) {
+                    // These will be set by the server template from environment variables
+                    user = '{{ user }}';
+                    passw = '{{ passw }}';
+                    cluster = '{{ cluster }}';
+                }
+
+                // Check if we have valid credentials (including from environment variables)
+                if (!user || !passw || !cluster || user === '{{ user }}' || user === '') {
+                    // Try to get from localStorage as fallback
+                    const storedUrl = localStorage.getItem('mongoUrl');
+                    if (storedUrl) {
+                        try {
+                            const credentials = parseMongoUrl(storedUrl);
+                            if (credentials) {
+                                // Use stored credentials
+                                await loadContentWithCredentials(credentials);
+                                return;
+                            }
+                        } catch (e) {
+                            console.warn('Could not parse stored MongoDB URL');
+                        }
+                    }
+
+                    showEmptyState('Please configure your MongoDB connection first. <a href="/configure" class="btn btn-primary mt-2">Go to Setup</a>');
+                    return;
+                }
+
+                const credentials = { user, passw, cluster };
+                await loadContentWithCredentials(credentials);
+            } catch (error) {
+                console.error('Error loading content:', error);
+                showEmptyState('Error loading content. Please check your connection.');
+            }
+        }
+
+        async function loadContentWithCredentials(credentials) {
+            // Load content based on available catalogs
+            const [movies, series] = await Promise.all([
+                fetchContent(credentials, 'movie'),
+                fetchContent(credentials, 'series')
+            ]);
+
+            // Combine and process content
+            allContent = [
+                ...movies.map(item => ({ ...item, type: 'movie' })),
+                ...series.map(item => ({ ...item, type: 'series' }))
+            ];
+
+            if (allContent.length === 0) {
+                showEmptyState();
+            } else {
+                showContent();
+                filterContent();
+            }
+        }
+
+        async function fetchContent(credentials, type) {
+            const url = `/${credentials.user}/${credentials.passw}/${credentials.cluster}/catalog/${type}/id.json`;
+
+            try {
+                const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                const data = await response.json();
+                return data.metas || [];
+            } catch (error) {
+                console.warn(`Failed to load ${type}s:`, error);
+                return [];
+            }
+        }
+
+        function parseMongoUrl(url) {
+            try {
+                const cleanUrl = url.replace("mongodb+srv://", "");
+                const parts = cleanUrl.split('@');
+                const credentials = parts[0].split(':');
+                const cluster = parts[1].replace(".mongodb.net", "").split('/')[0];
+
+                return {
+                    user: credentials[0],
+                    passw: credentials[1],
+                    cluster: cluster
+                };
+            } catch (error) {
+                console.error('Error parsing MongoDB URL:', error);
+                return null;
+            }
+        }
+
+        function filterContent() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+
+            filteredContent = allContent.filter(item => {
+                const matchesSearch =
+                    item.name.toLowerCase().includes(searchTerm) ||
+                    item.id.toLowerCase().includes(searchTerm) ||
+                    item.type.toLowerCase().includes(searchTerm);
+
+                const matchesFilter = currentFilter === 'all' || item.type === currentFilter;
+
+                return matchesSearch && matchesFilter;
+            });
+
+            renderTable();
+            updateStats();
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+
+            filteredContent.forEach(item => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>
+                        <strong>${item.name || 'Unknown Title'}</strong>
+                        ${item.genres && item.genres.length > 0 ?
+                        `<br><small class="text-muted">${item.genres.join(', ')}</small>` : ''}
+                    </td>
+                    <td>
+                        <code class="bg-light px-2 py-1 rounded">${item.id}</code>
+                    </td>
+                    <td>
+                        <span class="badge ${item.type === 'movie' ? 'badge-movie' : 'badge-series'}">
+                            <i class="fas fa-${item.type === 'movie' ? 'film' : 'tv'} me-1"></i>
+                            ${item.type}
+                        </span>
+                    </td>
+                    <td>
+                        ${item.imdbRating ? `<i class="fas fa-star text-warning me-1"></i>${item.imdbRating}` : 'N/A'}
+                    </td>
+                    <td>
+                        ${item.releaseInfo || 'N/A'}
+                    </td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-danger" onclick="removeContent('${item.id}', '${item.type}')">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function updateStats() {
+            const total = allContent.length;
+            const movies = allContent.filter(item => item.type === 'movie').length;
+            const series = allContent.filter(item => item.type === 'series').length;
+            const filtered = filteredContent.length;
+
+            document.getElementById('totalCount').textContent = total;
+            document.getElementById('movieCount').textContent = movies;
+            document.getElementById('seriesCount').textContent = series;
+            document.getElementById('filteredCount').textContent = filtered;
+
+            document.getElementById('statsCards').style.display = 'flex';
+        }
+
+        function showContent() {
+            document.getElementById('loadingState').style.display = 'none';
+            document.getElementById('emptyState').style.display = 'none';
+            document.getElementById('tableContent').style.display = 'block';
+        }
+
+        function showEmptyState(message = null) {
+            document.getElementById('loadingState').style.display = 'none';
+            document.getElementById('tableContent').style.display = 'none';
+
+            const emptyState = document.getElementById('emptyState');
+            if (message) {
+                emptyState.querySelector('h4').textContent = 'Error';
+                emptyState.querySelector('p').textContent = message;
+            }
+            emptyState.style.display = 'block';
+        }
+
+        async function removeContent(imdbId, type) {
+            if (!confirm(`Are you sure you want to remove "${imdbId}"?`)) {
+                return;
+            }
+
+            try {
+                // Get credentials from URL parameters or template variables
+                const urlParams = new URLSearchParams(window.location.search);
+                let user = urlParams.get('user');
+                let passw = urlParams.get('passw');
+                let cluster = urlParams.get('cluster');
+
+                // If no URL parameters, try to get from template variables
+                if (!user && !passw && !cluster) {
+                    user = '{{ user }}';
+                    passw = '{{ passw }}';
+                    cluster = '{{ cluster }}';
+                }
+
+                const mongoUrl = `mongodb+srv://${user}:${passw}@${cluster}.mongodb.net`;
+
+                const formData = new FormData();
+                formData.append('remove_option', 'remove');
+                formData.append('remove_type', type);
+                formData.append('remove_db_url', mongoUrl);
+                formData.append('remove_imdbID', imdbId);
+
+                const response = await fetch('/manage', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.text();
+
+                if (result.includes('Success')) {
+                    // Reload content after successful removal
+                    loadContent();
+                } else {
+                    alert('Error removing content: ' + result);
+                }
+            } catch (error) {
+                console.error('Error removing content:', error);
+                alert('Error removing content. Please try again.');
+            }
+        }
+    </script>
+</body>
+
+</html>
