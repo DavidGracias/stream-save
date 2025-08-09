@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { RouteComponentMap } from '../App';
 
 const Navigation = () => {
   const location = useLocation();
@@ -26,38 +27,21 @@ const Navigation = () => {
 
         <div className="collapse navbar-collapse" id="navbarNav">
           <ul className="navbar-nav ms-auto">
-            <li className="nav-item">
-              <Link
-                className={`nav-link ${isActive('/') ? 'active' : ''}`}
-                to="/"
-              >
-                Home
-              </Link>
-            </li>
-            <li className="nav-item">
-              <Link
-                className={`nav-link ${isActive('/configure') ? 'active' : ''}`}
-                to="/configure"
-              >
-                Setup
-              </Link>
-            </li>
-            <li className="nav-item">
-              <Link
-                className={`nav-link ${isActive('/manage') ? 'active' : ''}`}
-                to="/manage"
-              >
-                Manage
-              </Link>
-            </li>
-            <li className="nav-item">
-              <Link
-                className={`nav-link ${isActive('/view') ? 'active' : ''}`}
-                to="/view"
-              >
-                View
-              </Link>
-            </li>
+            {
+              Object.keys(RouteComponentMap).map(route => {
+                return (<li className="nav-item">
+                  <Link
+                    className={`nav-link ${isActive(route) ? 'active' : ''}`}
+                    to={route}
+                  >
+                    {
+                      (route.charAt(1).toUpperCase() + route.substring(2)) || "Home"
+                    }
+                  </Link>
+                </li>)
+              }
+              )
+            }
           </ul>
         </div>
       </div>

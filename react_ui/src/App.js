@@ -7,7 +7,7 @@ import './App.css';
 import Navigation from './components/Navigation';
 import Home from './pages/Home';
 import Configure from './pages/Configure';
-import View from './pages/View';
+import Manage from './pages/Manage';
 
 import { useState } from 'react';
 
@@ -28,6 +28,12 @@ const defaultMongoDBCred = {
   user: defaultUser,
   pass: defaultPass,
   cluster: defaultCluster,
+}
+
+export const RouteComponentMap = {
+  "/": Home,
+  "/manage": Manage,
+  "/configure": Configure,
 }
 
 
@@ -58,24 +64,22 @@ function App() {
     })
   }
 
-
-
   /*
     Go to configure page and force user to enter MongoDB credentials if ANY credential is the default
   */
   if (Object.keys(MongoDBCred).filter((key) => MongoDBCred[key] == defaultMongoDBCred[key]).length) {
+    // TEMP override: remove when ready to test more
+    setMongoDBCred({
+      user: "random_username",
+      pass: "random_username",
+      cluster: "random_username",
+    })
     return <Configure mongoDBCred={MongoDBCred} setMongoDBCred={setMongoDBCred} />
   }
 
   /*
     IF and only IF, credentials are loaded, allow the router to work
   */
-
-  const routeComponentMap = {
-    "/": Home,
-    "/configure": Configure,
-    "/view": View,
-  }
 
   return (
     <Router>
@@ -84,8 +88,8 @@ function App() {
         <div className="container-fluid">
           <Routes>
             {
-              Object.keys(routeComponentMap).map(route => {
-                const ReactPage = routeComponentMap[route]
+              Object.keys(RouteComponentMap).map(route => {
+                const ReactPage = RouteComponentMap[route]
                 return (<Route
                   path={route}
                   element={

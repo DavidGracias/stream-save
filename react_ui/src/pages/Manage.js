@@ -1,10 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { generateUrl } from '../App';
 
-const View = (mongoDBCred) => {
+// enum Types = {
+//   movie,
+//     series,
+// }
+
+const Manage = (mongoDBCred) => {
+
   const [searchParams] = useSearchParams();
-  const [content, setContent] = useState([]);
-  const [filteredContent, setFilteredContent] = useState([]);
+  const [content, setContent] = useState([{}]);
+  const [filteredContent, setFilteredContent] = useState([{}]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
@@ -16,36 +23,25 @@ const View = (mongoDBCred) => {
     showing: 0
   });
 
-  // Get credentials from URL params or localStorage
-  const getCredentials = () => {
-    const user = searchParams.get('user') || localStorage.getItem('mongo_user');
-    const passw = searchParams.get('passw') || localStorage.getItem('mongo_passw');
-    const cluster = searchParams.get('cluster') || localStorage.getItem('mongo_cluster');
-
-    return { user, passw, cluster };
-  };
-
   const fetchContent = async () => {
-    const { user, passw, cluster } = getCredentials();
-
-    if (!user || !passw || !cluster) {
-      setError('Please configure your MongoDB connection first.');
-      setLoading(false);
-      return;
-    }
-
     try {
       const baseUrl = 'http://127.0.0.1:5000';
-      const moviesResponse = await fetch(`${baseUrl}/${user}/${passw}/${cluster}/catalog/movie/stream_save_movies.json`);
-      const seriesResponse = await fetch(`${baseUrl}/${user}/${passw}/${cluster}/catalog/series/stream_save_series.json`);
+      const types = ["movie", "series"]
 
-      const moviesData = await moviesResponse.json();
-      const seriesData = await seriesResponse.json();
+      const deferredResponses = []
+      for (var type in types) {
+        deferredResponses.push(
+          await fetch(`${baseUrl}/${mongoDBCred.user}/${mongoDBCred.pass}/${mongoDBCred.cluster}/catalog/${type}/streams_saved.json`)
+        )
+      }
 
-      const allContent = [
-        ...(moviesData.metas || []).map(item => ({ ...item, type: 'movie' })),
-        ...(seriesData.metas || []).map(item => ({ ...item, type: 'series' }))
-      ];
+      const allContent = []
+      for (var i = 0; i < types.length; ++i) {
+        const response = await deferredResponses[i].json()
+        allContent.push(
+          (response.metas || []).map(item => ({ ...item, type: types[i] }))
+        )
+      }
 
       setContent(allContent);
       setFilteredContent(allContent);
@@ -100,8 +96,6 @@ const View = (mongoDBCred) => {
   };
 
   const removeContent = async (id, type) => {
-    const { user, passw, cluster } = getCredentials();
-
     try {
       const response = await fetch('http://127.0.0.1:5000/manage', {
         method: 'POST',
@@ -111,7 +105,7 @@ const View = (mongoDBCred) => {
         body: new URLSearchParams({
           remove_option: 'remove',
           remove_type: type,
-          remove_db_url: `mongodb+srv://${user}:${passw}@${cluster}.mongodb.net`,
+          remove_db_url: generateUrl(mongoDBCred),
           remove_imdbID: id
         })
       });
@@ -323,4 +317,4 @@ const View = (mongoDBCred) => {
   );
 };
 
-export default View;
+export default Manage;

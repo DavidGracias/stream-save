@@ -1,10 +1,45 @@
 
-All
-Update the UI to be based off of MUI instead of hardcoding div, and other elements, use components instead...
-We're hardcoding too much here, let's try to really utilize react components rather than re-inventing the wheel over and over
-
 Configure.js
 1. Make it possible to enter either (username, password, or cluster) OR url and allow updating either of these to update the other input pairings
 
 This will make it easy to paste a url or to update the url based off what the values we're seeing are
+2. if username & password are configured, generate stremio url to easily be copied for addon manifest. 
 
+
+Manage
+1. Update to 
+2. Add types enum to manage
+3. set different urls POSTs for adding and deleting content (Update routes to handle the POST and other info)
+4. allow POST url page to generate the mongodb url
+5. when posting to mongodb, we need to allow the user to see what the error is (especially helpful in debugging)
+6. Make POST page accept {remove/add} url query and update to appropriately send payloads (or use POST versus DELETE, which I think is better!!)
+7. Make sure Add content functionality is easy and clear here (maybe popup modal?) with that dissapearing footer
+8. allow manage to somehow use "user" as info as well (I think this is part of the metadata)
+9. auto hide/show information for the given user only (togglable views for admin, but need to click button -- no passwords or anything like that tho, just like an eyeball icon with a hand over it / x over it for "hide/show")
+
+Index/Home/navigation
+1. Update the cards to reflect the updated Manage page
+2. add emojis to navigation bar
+3. add bar or something between all nav options
+4. Re-order cards to be in same order as nav bar
+
+Later:
+include multiple user types on this page -- and that can be updated via the urls as well. Default to localhost
+add urls based off of user (localhost = default, rest = render.on url)
+Let filtering of users be the default
+Update routes to handle the POST and other info
+Update directory to discluse unneeded files
+Allow certain urls (stremio ones really) to redirect and add credentials to system
+
+
+
+
+
+
+
+ADD HOME SCREEN gentle message/modal (on any click closes it) that requests you use my Torbox referral code
+POST to github for the world to see
+make sure the readme is clear & updated
+give HUGE HUGE credit to original git repo
+note that if they want a much simpler UI, go to: previous github but note that this repository was last updated 2023, and has some slight issues, which was why I created this repo! Hope everyone likes!
+Allow for addon to open stremio laptop app for people who use that
