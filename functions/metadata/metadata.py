@@ -10,7 +10,8 @@ import urllib.parse
 
 class Metadata:
     OPTIONAL_META = ["posterShape", "description", "releaseInfo", "imdbRating", "director", "cast",
-                     "inTheaters", "runtime", "trailers", "videos"]
+                     "inTheaters", "runtime", "trailers", "videos", "background", "logo", "banner",
+                     "year", "country", "language", "awards", "metacriticRating", "released", "writer"]
 
     def __init__(self):
         self.base_url = "https://cinemeta-live.strem.io/meta/{}/{}.json"
@@ -128,15 +129,19 @@ class Metadata:
         # Lambda function for safe field access with defaults
         safe_get = lambda key, default: item.get(key, default)
         
-        meta = dict((key, item[key])
-                    for key in item.keys() if key in self.OPTIONAL_META)
+        # Include all optional metadata fields with safe access
+        meta = {}
+        for field in self.OPTIONAL_META:
+            meta[field] = safe_get(field, '')
         
+        # Essential fields (always included)
         meta['_id'] = safe_get('id', '')
         meta['id'] = safe_get('id', '')
         meta['type'] = safe_get('type', 'movie')
         meta['name'] = safe_get('name', 'Unknown Title')
         meta['genres'] = safe_get('genres', [])
         meta['poster'] = safe_get('poster', '')
+        
         return meta
 
     def _call(self, res):
