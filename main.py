@@ -169,6 +169,22 @@ def manage():
 def addon_config_redirect():
     return redirect('/manage')
 
+
+@app.route('/view', methods=['GET'])
+def view_content():
+    return render_template("view.html")
+
+
+@app.route('/settings', methods=['GET'])
+def settings():
+    return render_template("settings.html")
+
+
+@app.route('/help', methods=['GET'])
+def help_page():
+    return render_template("help.html")
+
+
 @app.route('/')
 def default():
     return render_template("index.html")
