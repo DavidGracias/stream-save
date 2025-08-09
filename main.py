@@ -164,11 +164,14 @@ def manage():
             return f"Failure, {str(e)}"
     else:
         return render_template("manage.html")
-
+    
+@app.route('/<user>/<passw>/<cluster>/configure', methods=['GET', 'POST'])
+def addon_config_redirect():
+    return redirect('/manage')
 
 @app.route('/')
 def default():
-    return redirect('/configure')
+    return render_template("index.html")
 
 
 if __name__ == '__main__':

@@ -1,54 +1,593 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
-    <title>Manage</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-Zenh87qX5JnK2Jl0vWa8Ck2rdkQ2Bzep5IDxbcnCeuOxjzrPF/et3URy9Bv1WTRi" crossorigin="anonymous">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Content - Stream Save</title>
+
+    <!-- Preload critical resources -->
+    <link rel="preload" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" as="style">
+    <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" as="style">
+
+    <!-- Load CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+
     <style>
-        #install_btn::after {
-             content: ' (' attr(href) ')';
+        :root {
+            --primary-color: #667eea;
+            --secondary-color: #764ba2;
+            --success-color: #28a745;
+            --warning-color: #ffc107;
+            --danger-color: #dc3545;
+        }
+
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .main-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2rem 1rem;
+        }
+
+        .card {
+            border: none;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            background: rgba(255, 255, 255, 0.95);
+        }
+
+        .card-header {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            border-radius: 15px 15px 0 0 !important;
+            padding: 1.5rem;
+        }
+
+        .form-control {
+            border-radius: 10px;
+            border: 2px solid #e9ecef;
+            padding: 12px 15px;
+            transition: all 0.3s ease;
+        }
+
+        .form-control:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        }
+
+        .btn {
+            border-radius: 10px;
+            padding: 12px 30px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            border: none;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, var(--success-color), #20c997);
+            border: none;
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, var(--danger-color), #e74c3c);
+            border: none;
+        }
+
+        .action-tabs {
+            display: flex;
+            margin-bottom: 2rem;
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 5px;
+        }
+
+        .action-tab {
+            flex: 1;
+            padding: 12px;
+            text-align: center;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: none;
+            background: transparent;
+            color: #6c757d;
+        }
+
+        .action-tab.active {
+            background: var(--primary-color);
+            color: white;
+            transform: scale(1.05);
+        }
+
+        .content-type-tabs {
+            display: flex;
+            margin-bottom: 1.5rem;
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 5px;
+        }
+
+        .content-type-tab {
+            flex: 1;
+            padding: 10px;
+            text-align: center;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: none;
+            background: transparent;
+            color: #6c757d;
+        }
+
+        .content-type-tab.active {
+            background: var(--success-color);
+            color: white;
+        }
+
+        .form-section {
+            display: none;
+        }
+
+        .form-section.active {
+            display: block;
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .help-box {
+            background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+            border: 2px solid #2196f3;
+            border-radius: 10px;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .example-box {
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            padding: 1rem;
+            margin-top: 0.5rem;
+        }
+
+        .loading {
+            display: none;
+        }
+
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        .success-message {
+            background: linear-gradient(135deg, var(--success-color), #20c997);
+            color: white;
+            border-radius: 10px;
+            padding: 1rem;
+            margin: 1rem 0;
+            display: none;
+        }
+
+        .error-message {
+            background: linear-gradient(135deg, var(--danger-color), #e74c3c);
+            color: white;
+            border-radius: 10px;
+            padding: 1rem;
+            margin: 1rem 0;
+            display: none;
+        }
+
+        .input-group-text {
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-right: none;
+        }
+
+        .form-control {
+            border-left: none;
+        }
+
+        .form-control:focus+.input-group-text {
+            border-color: var(--primary-color);
         }
     </style>
 </head>
+
 <body>
-<div class="container">
-    <br>
-    <br>
-    <form action="/manage" method="post">
-        <div class="form-group">
-            <strong >NOTE:- When adding single episode of a tv show please add in this format, imdbid:season:episode.
-                For example if you're adding s1e8 of some show you'll use imdbid:1:8
-            </strong > <br><br>
-            <input class="form-check-input" type="radio" id="add" name="option" value="add">
-            <label for="add">Add</label>
-            <input class="form-check-input" type="radio" id="remove" name="option" value="remove" onclick="remove_stream()">
-            <label for="remove"> Remove</label>
-            <br><br>
-            <input class="form-check-input" type="radio" id="movie" name="type" value="movie">
-            <label for="movie">Movie</label>
-            <input class="form-check-input" type="radio" id="series" name="type" value="series">
-            <label for="series"> Series</label>
-            <br>
-            <br>
-            <input type="text" name="db_url" id="db_url" class="form-control" placeholder="MongoDB url">
-            <input type="text" name="imdbID" id="imdbID" class="form-control" placeholder="ImdbID">
-            <input type="text" name="stream" id="stream" class="form-control" placeholder="Stream Link">
-
-            <strong id="dbUrlHelp" class="form-text text-muted">Get DB url <a href="https://www.mongodb.com/">here</a>, for more help read <a href="https://github.com/gautam8404/stream-save/blob/main/README.md">README</a></strong>
-            <br>
-
+    <div class="main-container fade-in">
+        <!-- Header -->
+        <div class="card mb-4">
+            <div class="card-header text-center">
+                <h2 class="mb-0">
+                    <i class="fas fa-edit me-2"></i>
+                    Manage Content
+                </h2>
+                <p class="mb-0 mt-2">Add or remove movies and series from your library</p>
+            </div>
         </div>
-        <br>
-        <input id="manage_btn" class="btn btn-primary" type="submit" value="Submit">
-    </form>
-</div>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-OERcA2EqjJCMA+/3y+gxIOqMEjwtxJY7qPCqsdltbNJuaOe923+mo//f6V8Qbsw3" crossorigin="anonymous"></script>
-<script>
-    function remove_stream() {
-        let a = document.getElementById("stream");
-        a.setAttribute("disabled", "disabled");
-    }
 
-</script>
+        <!-- Action Tabs -->
+        <div class="action-tabs">
+            <button class="action-tab active" onclick="switchAction('add')">
+                <i class="fas fa-plus me-2"></i>
+                Add Content
+            </button>
+            <button class="action-tab" onclick="switchAction('remove')">
+                <i class="fas fa-trash me-2"></i>
+                Remove Content
+            </button>
+        </div>
+
+        <!-- Main Form Card -->
+        <div class="card">
+            <div class="card-body p-4">
+                <form id="manageForm" action="/manage" method="post">
+                    <!-- Content Type Tabs -->
+                    <div class="content-type-tabs">
+                        <button type="button" class="content-type-tab active" onclick="switchContentType('movie')">
+                            <i class="fas fa-film me-2"></i>
+                            Movie
+                        </button>
+                        <button type="button" class="content-type-tab" onclick="switchContentType('series')">
+                            <i class="fas fa-tv me-2"></i>
+                            Series
+                        </button>
+                    </div>
+
+                    <!-- Help Box -->
+                    <div class="help-box">
+                        <h6><i class="fas fa-info-circle me-2"></i>Important Notes:</h6>
+                        <ul class="mb-0">
+                            <li>For single episodes, use format: <code>imdbid:season:episode</code> (e.g.,
+                                <code>tt0944947:1:8</code>)
+                            </li>
+                            <li>For entire series, just use the IMDB ID (e.g., <code>tt0944947</code>)</li>
+                            <li>Stream links can be magnet links, direct URLs, or YouTube links</li>
+                        </ul>
+                    </div>
+
+                    <!-- Add Content Form -->
+                    <div id="addForm" class="form-section active">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="db_url" class="form-label">MongoDB URL</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="fas fa-database"></i>
+                                    </span>
+                                    <input type="text" name="db_url" id="db_url" class="form-control"
+                                        placeholder="mongodb+srv://user:pass@cluster.mongodb.net" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="imdbID" class="form-label">IMDB ID</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="fas fa-hashtag"></i>
+                                    </span>
+                                    <input type="text" name="imdbID" id="imdbID" class="form-control"
+                                        placeholder="tt0944947" required>
+                                </div>
+                                <div class="example-box">
+                                    <small class="text-muted">
+                                        <strong>Examples:</strong><br>
+                                        Movie: <code>tt0468569</code> (The Dark Knight)<br>
+                                        Series: <code>tt0944947</code> (Game of Thrones)<br>
+                                        Episode: <code>tt0944947:1:8</code> (GoT S1E8)
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="stream" class="form-label">Stream Link</label>
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="fas fa-link"></i>
+                                </span>
+                                <input type="text" name="stream" id="stream" class="form-control"
+                                    placeholder="magnet:?xt=urn:btih:..." required>
+                            </div>
+                            <div class="example-box">
+                                <small class="text-muted">
+                                    <strong>Supported formats:</strong><br>
+                                    • Magnet links: <code>magnet:?xt=urn:btih:...</code><br>
+                                    • Direct URLs: <code>https://example.com/video.mp4</code><br>
+                                    • YouTube: <code>https://youtube.com/watch?v=...</code>
+                                </small>
+                            </div>
+                        </div>
+
+                        <input type="hidden" name="option" value="add">
+                        <input type="hidden" name="type" id="contentType" value="movie">
+
+                        <div class="d-flex justify-content-between">
+                            <button type="button" class="btn btn-outline-secondary" onclick="showHelp()">
+                                <i class="fas fa-question-circle me-1"></i>
+                                Need Help?
+                            </button>
+                            <button type="submit" class="btn btn-success" id="submitBtn">
+                                <i class="fas fa-plus me-2"></i>
+                                Add Content
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Remove Content Form -->
+                    <div id="removeForm" class="form-section">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="remove_db_url" class="form-label">MongoDB URL</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="fas fa-database"></i>
+                                    </span>
+                                    <input type="text" name="remove_db_url" id="remove_db_url" class="form-control"
+                                        placeholder="mongodb+srv://user:pass@cluster.mongodb.net" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="remove_imdbID" class="form-label">IMDB ID</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="fas fa-hashtag"></i>
+                                    </span>
+                                    <input type="text" name="remove_imdbID" id="remove_imdbID" class="form-control"
+                                        placeholder="tt0944947" required>
+                                </div>
+                            </div>
+                        </div>
+
+                        <input type="hidden" name="remove_option" value="remove">
+                        <input type="hidden" name="remove_type" id="removeContentType" value="movie">
+
+                        <div class="d-flex justify-content-between">
+                            <button type="button" class="btn btn-outline-secondary" onclick="showHelp()">
+                                <i class="fas fa-question-circle me-1"></i>
+                                Need Help?
+                            </button>
+                            <button type="submit" class="btn btn-danger" id="removeBtn">
+                                <i class="fas fa-trash me-2"></i>
+                                Remove Content
+                            </button>
+                        </div>
+                    </div>
+                </form>
+
+                <!-- Success/Error Messages -->
+                <div id="successMessage" class="success-message">
+                    <i class="fas fa-check-circle me-2"></i>
+                    <span id="successText">Content added successfully!</span>
+                </div>
+
+                <div id="errorMessage" class="error-message">
+                    <i class="fas fa-exclamation-circle me-2"></i>
+                    <span id="errorText">An error occurred. Please try again.</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="card mt-4">
+            <div class="card-body">
+                <h5 class="card-title">
+                    <i class="fas fa-bolt me-2"></i>
+                    Quick Actions
+                </h5>
+                <div class="row">
+                    <div class="col-md-4 mb-2">
+                        <a href="/configure" class="btn btn-outline-primary w-100">
+                            <i class="fas fa-cog me-2"></i>
+                            Configure Addon
+                        </a>
+                    </div>
+                    <div class="col-md-4 mb-2">
+                        <a href="/view" class="btn btn-outline-info w-100">
+                            <i class="fas fa-eye me-2"></i>
+                            View Content
+                        </a>
+                    </div>
+                    <div class="col-md-4 mb-2">
+                        <a href="/help" class="btn btn-outline-secondary w-100">
+                            <i class="fas fa-question-circle me-2"></i>
+                            Get Help
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Help Modal -->
+    <div class="modal fade" id="helpModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-question-circle me-2"></i>
+                        Content Management Help
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <h6>How to find IMDB IDs:</h6>
+                    <ol>
+                        <li>Go to <a href="https://www.imdb.com/" target="_blank">IMDB.com</a></li>
+                        <li>Search for your movie or series</li>
+                        <li>Copy the ID from the URL (starts with "tt")</li>
+                        <li>Example: <code>https://www.imdb.com/title/tt0944947/</code> → <code>tt0944947</code></li>
+                    </ol>
+
+                    <h6>For individual episodes:</h6>
+                    <p>Use the format: <code>imdbid:season:episode</code></p>
+                    <p>Example: <code>tt0944947:1:8</code> for Game of Thrones Season 1 Episode 8</p>
+
+                    <h6>Supported stream formats:</h6>
+                    <ul>
+                        <li><strong>Magnet links:</strong> <code>magnet:?xt=urn:btih:...</code></li>
+                        <li><strong>Direct URLs:</strong> <code>https://example.com/video.mp4</code></li>
+                        <li><strong>YouTube:</strong> <code>https://youtube.com/watch?v=...</code></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Load JavaScript -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let currentAction = 'add';
+        let currentContentType = 'movie';
+
+        function switchAction(action) {
+            currentAction = action;
+
+            // Update tab styles
+            document.querySelectorAll('.action-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            // Show/hide forms
+            document.getElementById('addForm').classList.remove('active');
+            document.getElementById('removeForm').classList.remove('active');
+
+            if (action === 'add') {
+                document.getElementById('addForm').classList.add('active');
+            } else {
+                document.getElementById('removeForm').classList.add('active');
+            }
+        }
+
+        function switchContentType(type) {
+            currentContentType = type;
+
+            // Update tab styles
+            document.querySelectorAll('.content-type-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            // Update hidden inputs
+            document.getElementById('contentType').value = type;
+            document.getElementById('removeContentType').value = type;
+        }
+
+        function showHelp() {
+            const modal = new bootstrap.Modal(document.getElementById('helpModal'));
+            modal.show();
+        }
+
+        // Form submission handling
+        document.getElementById('manageForm').addEventListener('submit', function (e) {
+            e.preventDefault();
+
+            const submitBtn = document.getElementById('submitBtn');
+            const originalText = submitBtn.innerHTML;
+
+            // Show loading state
+            submitBtn.innerHTML = '<span class="spinner me-2"></span>Processing...';
+            submitBtn.disabled = true;
+
+            // Hide any existing messages
+            document.getElementById('successMessage').style.display = 'none';
+            document.getElementById('errorMessage').style.display = 'none';
+
+            // Submit form
+            const formData = new FormData(this);
+            fetch('/manage', {
+                method: 'POST',
+                body: formData
+            })
+                .then(response => response.text())
+                .then(data => {
+                    if (data.includes('Success')) {
+                        showMessage('success', 'Content added successfully!');
+                        this.reset();
+                    } else {
+                        showMessage('error', data);
+                    }
+                })
+                .catch(error => {
+                    showMessage('error', 'An error occurred. Please try again.');
+                })
+                .finally(() => {
+                    submitBtn.innerHTML = originalText;
+                    submitBtn.disabled = false;
+                });
+        });
+
+        function showMessage(type, text) {
+            const successMsg = document.getElementById('successMessage');
+            const errorMsg = document.getElementById('errorMessage');
+
+            if (type === 'success') {
+                document.getElementById('successText').textContent = text;
+                successMsg.style.display = 'block';
+                errorMsg.style.display = 'none';
+            } else {
+                document.getElementById('errorText').textContent = text;
+                errorMsg.style.display = 'block';
+                successMsg.style.display = 'none';
+            }
+
+            // Auto-hide after 5 seconds
+            setTimeout(() => {
+                successMsg.style.display = 'none';
+                errorMsg.style.display = 'none';
+            }, 5000);
+        }
+
+        // Auto-focus on first input when page loads
+        document.addEventListener('DOMContentLoaded', function () {
+            document.getElementById('db_url').focus();
+        });
+    </script>
 </body>
+
 </html>
