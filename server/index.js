@@ -62,14 +62,25 @@ async function getCollections(req) {
 }
 
 async function fetchMeta(kind, id) {
-  try {
-    const r = await fetch(`https://cinemeta-live.strem.io/meta/${kind}/${id}.json`);
-    if (!r.ok) return {};
-    const j = await r.json();
-    return j?.meta || {};
-  } catch {
-    return {};
+  const safeId = encodeURIComponent(String(id || '').trim());
+  const urls = [
+    `https://cinemeta-live.strem.io/meta/${kind}/${safeId}.json`,
+    `https://v3-cinemeta.strem.io/meta/${kind}/${safeId}.json`,
+  ];
+  for (const u of urls) {
+    try {
+      const r = await fetch(u);
+      if (!r.ok) continue;
+      const j = await r.json();
+      const meta = j && j.meta ? j.meta : {};
+      if (meta && (meta.poster || meta.background || meta.logo || meta.name || meta.title)) {
+        return meta;
+      }
+    } catch {
+      // try next
+    }
   }
+  return {};
 }
 
 function normalize(d) {
@@ -261,29 +272,32 @@ async function createServer() {
       const { type, imdbID, stream } = req.body || {};
       if (!type || !imdbID) return res.status(400).json({ error: 'type and imdbID required' });
       const { movieCatalog, movieStreams, seriesCatalog } = await getCollections(req);
+      const cleanId = String(imdbID).trim();
       if (type === 'movie') {
         await Promise.all([
-          movieCatalog.deleteOne({ _id: imdbID }),
-          movieStreams.deleteOne({ _id: imdbID }),
+          movieCatalog.deleteOne({ _id: cleanId }),
+          movieStreams.deleteOne({ _id: cleanId }),
         ]);
-        const meta = await fetchMeta('movie', imdbID);
+        const meta = await fetchMeta('movie', cleanId);
+        const poster = meta?.poster || meta?.logo || meta?.background || '';
         await movieCatalog.insertOne({
-          _id: imdbID, id: imdbID, type: 'movie',
+          _id: cleanId, id: cleanId, type: 'movie',
           name: meta?.name || meta?.title || imdbID,
           description: meta?.description ?? null,
-          poster: meta?.poster || '',
+          poster,
           releaseInfo: meta?.releaseInfo || '',
           imdbRating: meta?.imdbRating || null,
         });
-        if (stream) await movieStreams.insertOne({ _id: imdbID, data: { url: stream } });
+        if (stream) await movieStreams.insertOne({ _id: cleanId, data: { url: String(stream).trim() } });
       } else if (type === 'series') {
-        await seriesCatalog.deleteOne({ _id: imdbID });
-        const meta = await fetchMeta('series', imdbID);
+        await seriesCatalog.deleteOne({ _id: cleanId });
+        const meta = await fetchMeta('series', cleanId);
+        const poster = meta?.poster || meta?.logo || meta?.background || '';
         await seriesCatalog.insertOne({
-          _id: imdbID, id: imdbID, type: 'series',
+          _id: cleanId, id: cleanId, type: 'series',
           name: meta?.name || meta?.title || imdbID,
           description: meta?.description ?? null,
-          poster: meta?.poster || '',
+          poster,
           releaseInfo: meta?.releaseInfo || '',
           imdbRating: meta?.imdbRating || null,
         });
