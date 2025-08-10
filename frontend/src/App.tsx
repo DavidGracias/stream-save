@@ -16,6 +16,7 @@ function App() {
     pass: null,
     cluster: null,
   });
+  const [isRedirected, setIsRedirected] = useState<boolean>(false);
 
   // Load MongoDB Credentials from environment variables
   useEffect(() => {
@@ -29,15 +30,6 @@ function App() {
     const urlPass = params.get('pass');
     const urlCluster = params.get('cluster');
 
-    console.log('envUser', envUser);
-    console.log('envPass', envPass);
-    console.log('envCluster', envCluster);
-    console.log('urlUser', urlUser);
-    console.log('urlPass', urlPass);
-    console.log('urlCluster', urlCluster);
-
-    window.alert(`envUser: ${envUser}\nenvPass: ${envPass}\nenvCluster: ${envCluster}\nurlUser: ${urlUser}\nurlPass: ${urlPass}\nurlCluster: ${urlCluster}`);
-
     const user = urlUser || envUser;
     const pass = urlPass || envPass;
     const cluster = urlCluster || envCluster;
@@ -45,12 +37,15 @@ function App() {
     if (user && pass && cluster) {
       setMongoDBCred({ user, pass, cluster });
     }
+    if (urlUser && urlPass && urlCluster) {
+      setIsRedirected(true);
+    }
   }, []);
 
   // Check if we have valid credentials
   const hasValidCredentials = useMemo(() => MongoDBCred.user && MongoDBCred.pass && MongoDBCred.cluster, [MongoDBCred]);
 
-  if (!hasValidCredentials) {
+  if (!hasValidCredentials && !isRedirected) {
     return <Configure mongoDBCred={MongoDBCred} setMongoDBCred={setMongoDBCred} />
   }
 
@@ -60,9 +55,14 @@ function App() {
         <Navigation />
         <div style={{ flexGrow: 1, padding: '16px' }}>
           <Routes>
-            <Route path="/configure" element={
-              <Configure mongoDBCred={MongoDBCred} setMongoDBCred={setMongoDBCred} />
-            } />
+            <Route
+              path="/configure"
+              element={
+                isRedirected
+                  ? <Navigate to="/" replace />
+                  : <Configure mongoDBCred={MongoDBCred} setMongoDBCred={setMongoDBCred} />
+              }
+            />
             <Route path="/manage" element={
               <Manage />
             } />
