@@ -6,6 +6,7 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import { MongoClient, ServerApiVersion } from 'mongodb';
+import fetch from 'node-fetch';
 
 dotenv.config();
 
@@ -115,16 +116,19 @@ async function createServer() {
     res.json(MANIFEST);
   });
 
-  // Dynamic manifest: /:user/:passw/:cluster/manifest.json
-  app.get('/:user/:passw/:cluster/manifest.json', (_req, res) => {
+  // Dynamic manifest: /:user/:pass/:cluster/manifest.json
+  app.get('/:user/:pass/:cluster/manifest.json', (_req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.json(MANIFEST);
   });
 
-  // Dynamic config: /:user/:passw/:cluster/configure
-  app.get('/:user/:passw/:cluster/configure', (req, res) => {
+  // Dynamic config: /:user/:pass/:cluster/configure
+  app.get('/:user/:pass/:cluster/configure', (req, res) => {
     const { user, pass, cluster } = req.params;
-    res.redirect(`/configure?user=${user}&pass=${pass}&cluster=${cluster}`);
+    const qpUser = encodeURIComponent(user);
+    const qpPass = encodeURIComponent(passw);
+    const qpCluster = encodeURIComponent(cluster);
+    res.redirect(`/configure?user=${qpUser}&pass=${qpPass}&cluster=${qpCluster}`);
   });
 
   // API routes

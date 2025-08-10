@@ -23,8 +23,18 @@ function App() {
     const envPass = import.meta.env.VITE_MONGO_PASSWORD;
     const envCluster = import.meta.env.VITE_MONGO_CLUSTER_URL;
 
-    if (envUser && envPass && envCluster) {
-      setMongoDBCred({ user: envUser, pass: envPass, cluster: envCluster });
+    // if the url has a user, pass, and cluster, use them
+    const params = new URLSearchParams(window.location.search);
+    const urlUser = params.get('user');
+    const urlPass = params.get('pass');
+    const urlCluster = params.get('cluster');
+
+    const user = urlUser || envUser;
+    const pass = urlPass || envPass;
+    const cluster = urlCluster || envCluster;
+
+    if (user && pass && cluster) {
+      setMongoDBCred({ user, pass, cluster });
     }
   }, []);
 

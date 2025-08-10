@@ -54,12 +54,19 @@ const Configure: React.FC<ConfigureProps> = ({ mongoDBCred, setMongoDBCred }) =>
     if (url) localStorage.setItem('db_url', url);
   }, [mongoDBCred]);
 
-  // Prefill from query parameters (?user=&passw=&cluster=) to match legacy behavior
+  // Prefill from query parameters (?user=&pass=&cluster=)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const qpUser = params.get('user');
-    const qpPass = params.get('passw');
+    const qpPass = params.get('pass') || params.get('passw');
     const qpCluster = params.get('cluster');
+    if (qpUser || qpPass || qpCluster) {
+      console.debug('[configure] query params', {
+        user: qpUser || '',
+        passw_len: (qpPass || '').length,
+        cluster: qpCluster || ''
+      });
+    }
     if (qpUser || qpPass || qpCluster) {
       const user = qpUser || '';
       const pass = qpPass || '';
