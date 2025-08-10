@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 
 // Import pages
 import Navigation from './components/Navigation.tsx';
@@ -45,12 +45,33 @@ function App() {
   // Check if we have valid credentials
   const hasValidCredentials = useMemo(() => MongoDBCred.user && MongoDBCred.pass && MongoDBCred.cluster, [MongoDBCred]);
 
+  const RouteLogger: React.FC = () => {
+    const location = useLocation();
+    (window as any).__ROUTE_HISTORY__ = (window as any).__ROUTE_HISTORY__ || [];
+    const hist: string[] = (window as any).__ROUTE_HISTORY__;
+    const path = `${location.pathname}${location.search}`;
+    if (hist[hist.length - 1] !== path) {
+      hist.push(path);
+      if (hist.length > 20) hist.shift();
+      const mask = (s: string) => s.replace(/(passw?|password)=([^&]+)/gi, '$1=***');
+      // eslint-disable-next-line no-console
+      console.log('[route] hit', mask(path), '| recent:', hist.slice(-5).map(mask));
+    }
+    return null;
+  };
+
   if (!hasValidCredentials && !isRedirected) {
-    return <Configure mongoDBCred={MongoDBCred} setMongoDBCred={setMongoDBCred} />
+    return (
+      <BrowserRouter>
+        <RouteLogger />
+        <Configure mongoDBCred={MongoDBCred} setMongoDBCred={setMongoDBCred} />
+      </BrowserRouter>
+    )
   }
 
   return (
     <BrowserRouter>
+      <RouteLogger />
       <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
         <Navigation />
         <div style={{ flexGrow: 1, padding: '16px' }}>
@@ -59,7 +80,7 @@ function App() {
               path="/configure"
               element={
                 isRedirected
-                  ? <Navigate to="/" replace />
+                  ? (() => { setIsRedirected(false); return <Navigate to="/" replace /> })()
                   : <Configure mongoDBCred={MongoDBCred} setMongoDBCred={setMongoDBCred} />
               }
             />

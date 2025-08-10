@@ -89,6 +89,36 @@ async function createServer() {
   app.use(cors());
   app.use(express.json());
 
+  // --- Request logging + recent route history ---
+  const requestHistory = [];
+  function maskSensitiveQuery(urlStr) {
+    try {
+      const u = new URL(urlStr, 'http://localhost');
+      if (u.searchParams.has('pass')) u.searchParams.set('pass', '***');
+      return `${u.pathname}${u.search}`;
+    } catch {
+      return urlStr;
+    }
+  }
+  app.use((req, _res, next) => {
+    const now = new Date().toISOString();
+    const maskedUrl = maskSensitiveQuery(req.originalUrl || req.url || '');
+    const entry = {
+      t: now,
+      method: req.method,
+      url: maskedUrl,
+      ip: req.ip || req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown',
+      ua: req.headers['user-agent'] || '',
+    };
+    requestHistory.push(entry);
+    if (requestHistory.length > 200) requestHistory.shift();
+    // Log hit + last 5 routes
+    const recent = requestHistory.slice(-5).map((e) => `${e.method} ${e.url}`).join('  |  ');
+    console.log(`[hit] ${entry.method} ${entry.url} from ${entry.ip} @ ${entry.t}`);
+    console.log(`[recent] ${recent}`);
+    next();
+  });
+
   console.log('Server starting. Using env MONGO_URL fallback?', Boolean(MONGO_URL));
 
   // ---- Stremio manifest (dynamic by credentials in URL) ----
@@ -116,19 +146,96 @@ async function createServer() {
     res.json(MANIFEST);
   });
 
-  // Dynamic manifest: support both :pass and :passw param names
+  // Dynamic manifest
   const sendManifest = (_req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.json(MANIFEST);
   };
   app.get('/:user/:pass/:cluster/manifest.json', sendManifest);
-  app.get('/:user/:passw/:cluster/manifest.json', sendManifest);
 
   // Dynamic config: /:user/:pass/:cluster/configure
   app.get('/:user/:pass/:cluster/configure', (req, res) => {
     const { user, pass, cluster } = req.params;
     res.redirect(`/configure?user=${user}&pass=${pass}&cluster=${cluster}`);
   });
+
+
+  // Build Mongo URL from path params (for Stremio addon endpoints)
+  function mongoUrlFromParams(params) {
+    const user = params.user || '';
+    const pw = params.pass || '';
+    const cluster = params.cluster || '';
+    if (!user || !pw || !cluster) return '';
+    return `mongodb+srv://${encodeURIComponent(user)}:${encodeURIComponent(pw)}@${encodeURIComponent(cluster)}.mongodb.net`;
+  }
+
+  async function getCollectionsFromParams(params) {
+    const url = mongoUrlFromParams(params);
+    if (!url) {
+      const err = new Error('Missing or invalid credentials in URL');
+      err.statusCode = 400;
+      throw err;
+    }
+    let client = clientCache.get(url);
+    if (!client) {
+      client = await createMongoClient(url).connect();
+      try { await client.db('admin').command({ ping: 1 }); } catch { }
+      clientCache.set(url, client);
+    }
+    const db = client.db(DB_NAME);
+    return {
+      movieCatalog: db.collection(MOVIE_CATALOG),
+      movieStreams: db.collection(MOVIE_STREAMS),
+      seriesCatalog: db.collection(SERIES_CATALOG),
+    };
+  }
+
+  // Stremio Catalog endpoint
+  async function handleCatalog(req, res) {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    try {
+      const { entity_type, id } = req.params;
+      const { movieCatalog, seriesCatalog } = await getCollectionsFromParams(req.params);
+      if (entity_type === 'movie' && id === 'stream_save_movies') {
+        const movies = await movieCatalog.find({}).toArray();
+        const metas = movies.map((m) => normalize({ ...m, type: 'movie' }));
+        return res.json({ metas });
+      }
+      if (entity_type === 'series' && id === 'stream_save_series') {
+        const series = await seriesCatalog.find({}).toArray();
+        const metas = series.map((s) => normalize({ ...s, type: 'series' }));
+        return res.json({ metas });
+      }
+      return res.json({ metas: [] });
+    } catch (e) {
+      const code = e?.statusCode || 500;
+      return res.status(code).json({ metas: [], error: e?.message || 'catalog error' });
+    }
+  }
+  app.get('/:user/:pass/:cluster/catalog/:entity_type/:id.json', handleCatalog);
+
+  // Stremio Stream endpoint
+  async function handleStream(req, res) {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    try {
+      const { type, id } = req.params;
+      const { movieStreams } = await getCollectionsFromParams(req.params);
+      if (type === 'movie') {
+        const doc = await movieStreams.findOne({ _id: id });
+        const url = doc?.data?.url || '';
+        if (url) {
+          return res.json({ streams: [{ title: 'Saved', name: 'Stream Save', url }] });
+        }
+        return res.json({ streams: [] });
+      }
+      // series per-episode links not stored yet
+      return res.json({ streams: [] });
+    } catch (e) {
+      const code = e?.statusCode || 500;
+      return res.status(code).json({ streams: [], error: e?.message || 'stream error' });
+    }
+  }
+  app.get('/:user/:pass/:cluster/stream/:type/:id.json', handleStream);
 
   // API routes
   app.get('/api/content', async (req, res) => {
