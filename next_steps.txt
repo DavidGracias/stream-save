@@ -1,14 +1,5 @@
-
-Configure.js
-1. Make it possible to enter either (username, password, or cluster) OR url and allow updating either of these to update the other input pairings
-
-This will make it easy to paste a url or to update the url based off what the values we're seeing are
-2. if username & password are configured, generate stremio url to easily be copied for addon manifest. 
-
-
 Manage
-1. Update to 
-2. Add types enum to manage
+2. Add types enum to manage (for movies versus series, etc.)
 3. set different urls POSTs for adding and deleting content (Update routes to handle the POST and other info)
 4. allow POST url page to generate the mongodb url
 5. when posting to mongodb, we need to allow the user to see what the error is (especially helpful in debugging)
@@ -17,11 +8,6 @@ Manage
 8. allow manage to somehow use "user" as info as well (I think this is part of the metadata)
 9. auto hide/show information for the given user only (togglable views for admin, but need to click button -- no passwords or anything like that tho, just like an eyeball icon with a hand over it / x over it for "hide/show")
 
-Index/Home/navigation
-1. Update the cards to reflect the updated Manage page
-2. add emojis to navigation bar
-3. add bar or something between all nav options
-4. Re-order cards to be in same order as nav bar
 
 Later:
 include multiple user types on this page -- and that can be updated via the urls as well. Default to localhost

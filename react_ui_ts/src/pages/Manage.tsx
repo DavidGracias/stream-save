@@ -1,38 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { generateUrl } from '../App';
+import { Container } from '@mui/material';
+import { generateUrl } from '../utils';
 import {
-  Container,
-  Typography,
-  Card,
-  CardContent,
-  TextField,
-  Button,
-  Box,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Chip,
-  Avatar,
-  IconButton,
-  InputAdornment,
-  ButtonGroup,
-  CircularProgress,
-  Alert,
-  AlertTitle,
-  Paper
-} from '@mui/material';
-import {
-  Search as SearchIcon,
-  Delete as DeleteIcon,
-  Star as StarIcon,
-  Visibility as VisibilityIcon,
-  Movie as MovieIcon,
-  Tv as TvIcon,
-  Storage as StorageIcon
-} from '@mui/icons-material';
+  ManageHeader,
+  StatsCards,
+  SearchAndFilter,
+  AddContentButton,
+  ContentTable,
+  LoadingState,
+  ErrorState,
+  AddContentDialog,
+  useAddContentForm
+} from '../components/Manage';
 import type { MongoDBCredentials, ContentItem, Stats } from '../types';
 
 interface ManageProps {
@@ -53,32 +32,63 @@ const Manage: React.FC<ManageProps> = ({ mongoDBCred }) => {
     series: 0,
     showing: 0
   });
+  const [showAddForm, setShowAddForm] = useState<boolean>(false);
+  const { formData: addFormData, setFormData: setAddFormData, handleFormChange, resetForm } = useAddContentForm();
+  const [addingContent, setAddingContent] = useState<boolean>(false);
 
   const fetchContent = async (): Promise<void> => {
     try {
-      const baseUrl = 'http://127.0.0.1:5000';
-      const types: ('movie' | 'series')[] = ["movie", "series"];
-
-      const deferredResponses: Response[] = [];
-      for (const type of types) {
-        deferredResponses.push(
-          await fetch(`${baseUrl}/${mongoDBCred.user}/${mongoDBCred.pass}/${mongoDBCred.cluster}/catalog/${type}/streams_saved.json`)
-        );
+      // Validate MongoDB credentials
+      if (!mongoDBCred.user || !mongoDBCred.pass || !mongoDBCred.cluster) {
+        setError('MongoDB credentials are not properly configured. Please check your configuration.');
+        setLoading(false);
+        return;
       }
 
-      const allContent: ContentItem[] = [];
-      for (let i = 0; i < types.length; ++i) {
-        const response = await deferredResponses[i].json();
-        const items = (response.metas || []).map((item: any) => ({ ...item, type: types[i] }));
-        allContent.push(...items);
+      // Use the proper URL from the backend instead of hardcoded localhost
+      const baseUrl = window.location.origin;
+
+      console.log('Fetching content with:', { baseUrl, mongoDBCred });
+
+      // First, check if the backend is accessible
+      try {
+        const healthCheck = await fetch(`${baseUrl}/manifest.json`);
+        if (!healthCheck.ok) {
+          throw new Error(`Backend server not responding: ${healthCheck.status}`);
+        }
+      } catch (healthError) {
+        console.error('Health check failed:', healthError);
+        setError('Backend server is not accessible. Please ensure the server is running.');
+        setLoading(false);
+        return;
       }
 
-      setContent(allContent);
-      setFilteredContent(allContent);
-      updateStats(allContent);
-      setLoading(false);
+      // Use the new catalog endpoint that returns all content
+      const response = await fetch(`${baseUrl}/catalog`);
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.content && Array.isArray(data.content)) {
+          const allContent = data.content;
+          setContent(allContent);
+          setFilteredContent(allContent);
+          updateStats(allContent);
+          setError(''); // Clear any previous errors
+        } else {
+          // No content found, but this isn't necessarily an error
+          setContent([]);
+          setFilteredContent([]);
+          setStats({ total: 0, movies: 0, series: 0, showing: 0 });
+          setError(''); // Clear any previous errors
+        }
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Failed to fetch content:', response.status, errorData);
+        setError(`Failed to fetch content: ${response.status} ${response.statusText}`);
+      }
     } catch (err) {
-      setError('Failed to load content. Please check your connection.');
+      console.error('Fetch content error:', err);
+      setError(`Failed to load content: ${err instanceof Error ? err.message : 'Unknown error'}. Please check your connection and credentials.`);
       setLoading(false);
     }
   };
@@ -127,7 +137,8 @@ const Manage: React.FC<ManageProps> = ({ mongoDBCred }) => {
 
   const removeContent = async (id: string, type: 'movie' | 'series'): Promise<void> => {
     try {
-      const response = await fetch('http://127.0.0.1:5000/manage', {
+      const baseUrl = window.location.origin;
+      const response = await fetch(`${baseUrl}/manage`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
@@ -142,13 +153,78 @@ const Manage: React.FC<ManageProps> = ({ mongoDBCred }) => {
 
       if (response.ok) {
         // Refresh content after removal
-        fetchContent();
+        await fetchContent();
       } else {
-        alert('Failed to remove content');
+        const errorText = await response.text();
+        console.error('Remove content error:', response.status, errorText);
+        alert(`Failed to remove content: ${response.status} ${response.statusText}`);
       }
     } catch (err) {
-      alert('Error removing content');
+      console.error('Error removing content:', err);
+      alert(`Error removing content: ${err instanceof Error ? err.message : 'Unknown error'}`);
     }
+  };
+
+  const addContent = async (): Promise<void> => {
+    try {
+      setAddingContent(true);
+      const baseUrl = window.location.origin;
+
+      // Debug: Log what we're sending
+      const requestBody = {
+        option: 'add',
+        type: addFormData.type,
+        imdbID: addFormData.imdbId,
+        stream: addFormData.streamLink,
+        db_url: generateUrl(mongoDBCred)
+      };
+
+      console.log('Sending request to:', `${baseUrl}/manage`);
+      console.log('Request body:', requestBody);
+      console.log('MongoDB credentials:', mongoDBCred);
+
+      // First check if backend is accessible
+      try {
+        const healthCheck = await fetch(`${baseUrl}/manifest.json`);
+        if (!healthCheck.ok) {
+          throw new Error(`Backend not accessible: ${healthCheck.status}`);
+        }
+        console.log('Backend health check passed');
+      } catch (healthError) {
+        console.error('Backend health check failed:', healthError);
+        throw new Error('Backend server is not accessible. Please ensure the server is running.');
+      }
+
+      const response = await fetch(`${baseUrl}/manage`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams(requestBody)
+      });
+
+      if (response.ok) {
+        // Reset form and refresh content
+        resetForm();
+        setShowAddForm(false);
+        await fetchContent();
+        alert('Content added successfully!');
+      } else {
+        const errorText = await response.text();
+        console.error('Add content error:', response.status, errorText);
+        alert(`Failed to add content: ${response.status} ${response.statusText}`);
+      }
+    } catch (err) {
+      console.error('Error adding content:', err);
+      alert(`Error adding content: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setAddingContent(false);
+    }
+  };
+
+  const resetAddForm = (): void => {
+    resetForm();
+    setShowAddForm(false);
   };
 
   useEffect(() => {
@@ -156,316 +232,41 @@ const Manage: React.FC<ManageProps> = ({ mongoDBCred }) => {
   }, []);
 
   if (loading) {
-    return (
-      <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-        <Box display="flex" flexDirection="column" alignItems="center" justifyContent="center" minHeight="400px">
-          <CircularProgress size={60} sx={{ color: 'primary.main' }} />
-          <Typography variant="h6" sx={{ mt: 2, color: 'text.secondary' }}>
-            Loading your content...
-          </Typography>
-        </Box>
-      </Container>
-    );
+    return <LoadingState />;
   }
 
   if (error) {
-    return (
-      <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-        <Alert severity="warning" sx={{
-          textAlign: 'center',
-          background: 'linear-gradient(135deg, #1a1a2e 0%, #2d2d2d 100%)',
-          border: '1px solid #2d2d2d',
-        }}>
-          <AlertTitle>Configuration Required</AlertTitle>
-          {error}
-          <Box sx={{ mt: 2 }}>
-            <Button variant="contained" href="/configure" sx={{ borderRadius: 2 }}>
-              Go to Setup
-            </Button>
-          </Box>
-        </Alert>
-      </Container>
-    );
+    return <ErrorState error={error} />;
   }
 
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-      {/* Header */}
-      <Box mb={4}>
-        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-          <VisibilityIcon sx={{ fontSize: 48, color: 'primary.main', mr: 2 }} />
-          <Typography variant="h3" component="h1" color="primary" gutterBottom sx={{
-            fontWeight: 'bold',
-            background: 'linear-gradient(45deg, #6c5ce7 30%, #a29bfe 90%)',
-            backgroundClip: 'text',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-          }}>
-            View Content
-          </Typography>
-        </Box>
-        <Typography variant="h6" color="text.secondary">
-          Browse and manage your saved stream links
-        </Typography>
-      </Box>
+      <ManageHeader />
+      <StatsCards stats={stats} />
 
-      {/* Stats Cards */}
-      <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 3, mb: 4 }}>
-        <Box sx={{ flex: 1 }}>
-          <Card elevation={0} sx={{
-            background: 'linear-gradient(135deg, #1a1a2e 0%, #2d2d2d 100%)',
-            border: '1px solid #2d2d2d',
-            '&:hover': {
-              transform: 'translateY(-4px)',
-              boxShadow: '0 12px 40px rgba(108, 92, 231, 0.15)',
-            },
-            transition: 'all 0.3s ease',
-          }}>
-            <CardContent sx={{ textAlign: 'center', p: 3 }}>
-              <StorageIcon sx={{ fontSize: 40, color: 'primary.main', mb: 1 }} />
-              <Typography variant="h4" color="primary" gutterBottom sx={{ fontWeight: 'bold' }}>
-                {stats.total}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Total Items
-              </Typography>
-            </CardContent>
-          </Card>
-        </Box>
-        <Box sx={{ flex: 1 }}>
-          <Card elevation={0} sx={{
-            background: 'linear-gradient(135deg, #1a1a2e 0%, #2d2d2d 100%)',
-            border: '1px solid #2d2d2d',
-            '&:hover': {
-              transform: 'translateY(-4px)',
-              boxShadow: '0 12px 40px rgba(108, 92, 231, 0.15)',
-            },
-            transition: 'all 0.3s ease',
-          }}>
-            <CardContent sx={{ textAlign: 'center', p: 3 }}>
-              <MovieIcon sx={{ fontSize: 40, color: 'secondary.main', mb: 1 }} />
-              <Typography variant="h4" color="secondary" gutterBottom sx={{ fontWeight: 'bold' }}>
-                {stats.movies}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Movies
-              </Typography>
-            </CardContent>
-          </Card>
-        </Box>
-        <Box sx={{ flex: 1 }}>
-          <Card elevation={0} sx={{
-            background: 'linear-gradient(135deg, #1a1a2e 0%, #2d2d2d 100%)',
-            border: '1px solid #2d2d2d',
-            '&:hover': {
-              transform: 'translateY(-4px)',
-              boxShadow: '0 12px 40px rgba(108, 92, 231, 0.15)',
-            },
-            transition: 'all 0.3s ease',
-          }}>
-            <CardContent sx={{ textAlign: 'center', p: 3 }}>
-              <TvIcon sx={{ fontSize: 40, color: 'primary.light', mb: 1 }} />
-              <Typography variant="h4" color="primary.light" gutterBottom sx={{ fontWeight: 'bold' }}>
-                {stats.series}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Series
-              </Typography>
-            </CardContent>
-          </Card>
-        </Box>
-        <Box sx={{ flex: 1 }}>
-          <Card elevation={0} sx={{
-            background: 'linear-gradient(135deg, #1a1a2e 0%, #2d2d2d 100%)',
-            border: '1px solid #2d2d2d',
-            '&:hover': {
-              transform: 'translateY(-4px)',
-              boxShadow: '0 12px 40px rgba(108, 92, 231, 0.15)',
-            },
-            transition: 'all 0.3s ease',
-          }}>
-            <CardContent sx={{ textAlign: 'center', p: 3 }}>
-              <VisibilityIcon sx={{ fontSize: 40, color: 'warning.main', mb: 1 }} />
-              <Typography variant="h4" color="warning.main" gutterBottom sx={{ fontWeight: 'bold' }}>
-                {stats.showing}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Showing
-              </Typography>
-            </CardContent>
-          </Card>
-        </Box>
-      </Box>
+      <SearchAndFilter
+        searchTerm={searchTerm}
+        filterType={filterType}
+        onSearch={handleSearch}
+        onFilter={handleFilter}
+      />
 
-      {/* Search and Filter */}
-      <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 3, mb: 4 }}>
-        <Box sx={{ flex: 1 }}>
-          <TextField
-            fullWidth
-            placeholder="Search by title or IMDB ID..."
-            value={searchTerm}
-            onChange={(e) => handleSearch(e.target.value)}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon sx={{ color: 'primary.main' }} />
-                </InputAdornment>
-              ),
-            }}
-            sx={{
-              '& .MuiOutlinedInput-root': {
-                '& fieldset': {
-                  borderColor: '#2d2d2d',
-                },
-                '&:hover fieldset': {
-                  borderColor: 'primary.main',
-                },
-                '&.Mui-focused fieldset': {
-                  borderColor: 'primary.main',
-                },
-              },
-            }}
-          />
-        </Box>
-        <Box sx={{ flex: 1 }}>
-          <ButtonGroup fullWidth variant="outlined" sx={{ borderRadius: 2 }}>
-            <Button
-              variant={filterType === 'all' ? 'contained' : 'outlined'}
-              onClick={() => handleFilter('all')}
-              sx={{ borderRadius: 2 }}
-            >
-              All
-            </Button>
-            <Button
-              variant={filterType === 'movie' ? 'contained' : 'outlined'}
-              onClick={() => handleFilter('movie')}
-              sx={{ borderRadius: 2 }}
-            >
-              Movies
-            </Button>
-            <Button
-              variant={filterType === 'series' ? 'contained' : 'outlined'}
-              onClick={() => handleFilter('series')}
-              sx={{ borderRadius: 2 }}
-            >
-              Series
-            </Button>
-          </ButtonGroup>
-        </Box>
-      </Box>
+      <AddContentButton onClick={() => setShowAddForm(true)} />
 
-      {/* Content Table */}
-      <Card elevation={0} sx={{
-        background: 'linear-gradient(135deg, #1a1a2e 0%, #2d2d2d 100%)',
-        border: '1px solid #2d2d2d',
-        borderRadius: 3,
-      }}>
-        <CardContent sx={{ p: 0 }}>
-          {filteredContent.length === 0 ? (
-            <Box textAlign="center" py={6}>
-              <Typography variant="h6" color="text.secondary" gutterBottom>
-                No content found
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Try adjusting your search or filter criteria
-              </Typography>
-            </Box>
-          ) : (
-            <TableContainer component={Paper} sx={{
-              background: 'transparent',
-              boxShadow: 'none',
-            }}>
-              <Table>
-                <TableHead>
-                  <TableRow sx={{ borderBottom: '1px solid #2d2d2d' }}>
-                    <TableCell sx={{ color: 'primary.main', fontWeight: 'bold' }}>Title</TableCell>
-                    <TableCell sx={{ color: 'primary.main', fontWeight: 'bold' }}>IMDB ID</TableCell>
-                    <TableCell sx={{ color: 'primary.main', fontWeight: 'bold' }}>Type</TableCell>
-                    <TableCell sx={{ color: 'primary.main', fontWeight: 'bold' }}>Rating</TableCell>
-                    <TableCell sx={{ color: 'primary.main', fontWeight: 'bold' }}>Release</TableCell>
-                    <TableCell sx={{ color: 'primary.main', fontWeight: 'bold' }}>Actions</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {filteredContent.map((item, index) => (
-                    <TableRow key={index} hover sx={{
-                      '&:hover': {
-                        backgroundColor: 'rgba(108, 92, 231, 0.05)',
-                      },
-                      borderBottom: '1px solid #2d2d2d',
-                    }}>
-                      <TableCell>
-                        <Box display="flex" alignItems="center" gap={2}>
-                          {item.poster && (
-                            <Avatar
-                              src={item.poster}
-                              alt={item.name}
-                              sx={{ width: 40, height: 60 }}
-                              variant="rounded"
-                            />
-                          )}
-                          <Box>
-                            <Typography variant="subtitle1" fontWeight="bold" color="text.primary">
-                              {item.name}
-                            </Typography>
-                            {item.description && (
-                              <Typography variant="body2" color="text.secondary">
-                                {item.description.substring(0, 50)}...
-                              </Typography>
-                            )}
-                          </Box>
-                        </Box>
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2" component="code" sx={{ color: 'primary.light' }}>
-                          {item.id}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Chip
-                          label={item.type}
-                          color={item.type === 'movie' ? 'secondary' : 'primary'}
-                          size="small"
-                          sx={{ fontWeight: 'bold' }}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        {item.imdbRating && (
-                          <Box display="flex" alignItems="center" gap={0.5}>
-                            <StarIcon sx={{ color: 'warning.main', fontSize: 16 }} />
-                            <Typography variant="body2" color="warning.main" fontWeight="bold">
-                              {item.imdbRating}
-                            </Typography>
-                          </Box>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2" color="text.secondary">
-                          {item.releaseInfo || 'N/A'}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <IconButton
-                          color="error"
-                          size="small"
-                          onClick={() => removeContent(item.id, item.type)}
-                          sx={{
-                            '&:hover': {
-                              backgroundColor: 'rgba(244, 67, 54, 0.1)',
-                            },
-                          }}
-                        >
-                          <DeleteIcon />
-                        </IconButton>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          )}
-        </CardContent>
-      </Card>
+      <ContentTable
+        content={content}
+        filteredContent={filteredContent}
+        onRemoveContent={removeContent}
+      />
+
+      <AddContentDialog
+        showAddForm={showAddForm}
+        formData={addFormData}
+        addingContent={addingContent}
+        onFormChange={handleFormChange}
+        onSubmit={addContent}
+        onCancel={resetAddForm}
+      />
     </Container>
   );
 };

@@ -156,6 +156,59 @@ def addon_catalog_redirect(type):
     return redirect(f"/{user}/{passw}/{cluster}/catalog/{type}/id.json")
 
 
+@app.route('/catalog', methods=['GET'])
+def get_all_content():
+    """Get all content from the database"""
+    try:
+        # Get MongoDB credentials from environment
+        mongo_creds = parse_mongo_url()
+        if not mongo_creds['user'] or not mongo_creds['passw'] or not mongo_creds['cluster']:
+            return respond_with({'error': 'MongoDB credentials not configured'}), 400
+        
+        db_url = f"mongodb+srv://{mongo_creds['user']}:{mongo_creds['passw']}@{mongo_creds['cluster']}.mongodb.net"
+        client = MongoClient(db_url)
+        
+        # Get all movies and series
+        movie_catalog = movieCatalog(client)
+        series_catalog = seriesCatalog(client)
+        
+        all_movies = movie_catalog.full() if movie_catalog.full() else []
+        all_series = series_catalog.full() if series_catalog.full() else []
+        
+        # Combine and format the data
+        content = []
+        
+        if all_movies:
+            for movie in all_movies:
+                content.append({
+                    'id': movie.get('id'),
+                    'type': 'movie',
+                    'title': movie.get('name'),
+                    'description': movie.get('overview'),
+                    'poster': movie.get('poster'),
+                    'year': movie.get('year'),
+                    'rating': movie.get('rating')
+                })
+        
+        if all_series:
+            for series in all_series:
+                content.append({
+                    'id': series.get('id'),
+                    'type': 'series',
+                    'title': series.get('name'),
+                    'description': series.get('overview'),
+                    'poster': series.get('poster'),
+                    'year': series.get('year'),
+                    'rating': series.get('rating')
+                })
+        
+        return respond_with({'content': content})
+        
+    except Exception as e:
+        print(f"Error fetching all content: {str(e)}")
+        return respond_with({'error': f'Failed to fetch content: {str(e)}'}), 500
+
+
 @app.route('/configure', methods=['GET', 'POST'])
 def configure():
     if request.method == 'POST':

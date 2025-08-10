@@ -1,4 +1,4 @@
-export interface MongoDBCredentials {
+export type MongoDBCredentials = {
   user: string | null;
   pass: string | null;
   cluster: string | null;
