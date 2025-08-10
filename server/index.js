@@ -90,6 +90,43 @@ async function createServer() {
 
   console.log('Server starting. Using env MONGO_URL fallback?', Boolean(MONGO_URL));
 
+  // ---- Stremio manifest (dynamic by credentials in URL) ----
+  const MANIFEST = {
+    id: 'org.stremio.streamsave',
+    version: '1.0.0',
+    name: 'Stream Save',
+    description: 'save custom stream links and play in different devices',
+    resources: [
+      'catalog',
+      { name: 'stream', types: ['movie', 'series'], idPrefixes: ['tt'] },
+    ],
+    types: ['movie', 'series', 'other'],
+    catalogs: [
+      { type: 'movie', name: 'Saved Movies', id: 'stream_save_movies' },
+      { type: 'series', name: 'Saved Series', id: 'stream_save_series' },
+    ],
+    behaviorHints: { configurable: true },
+    idPrefixes: ['tt'],
+  };
+
+  // For Debugging: Plain manifest (no credentials): /manifest.json
+  app.get('/manifest.json', (_req, res) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.json(MANIFEST);
+  });
+
+  // Dynamic manifest: /:user/:passw/:cluster/manifest.json
+  app.get('/:user/:passw/:cluster/manifest.json', (_req, res) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.json(MANIFEST);
+  });
+
+  // Dynamic config: /:user/:passw/:cluster/configure
+  app.get('/:user/:passw/:cluster/configure', (req, res) => {
+    const { user, pass, cluster } = req.params;
+    res.redirect(`/configure?user=${user}&pass=${pass}&cluster=${cluster}`);
+  });
+
   // API routes
   app.get('/api/content', async (req, res) => {
     try {

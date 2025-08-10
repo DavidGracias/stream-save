@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Container } from '@mui/material';
+import { Container, Snackbar, Alert } from '@mui/material';
 import type { ContentItem } from '../types';
 import LoadingState from '../components/Manage/LoadingState';
 import ErrorState from '../components/Manage/ErrorState';
@@ -22,17 +22,25 @@ const calculateStats = (content: ContentItem[]) => ({
 
 const Manage: React.FC = () => {
   const [content, setContent] = useState<ContentItem[]>([]);
-  const [filteredContent, setFilteredContent] = useState<ContentItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [filterType, setFilterType] = useState<'all' | 'movie' | 'series'>('all');
-  const [stats, setStats] = useState({ total: 0, movies: 0, series: 0, showing: 0 });
   const [showAddForm, setShowAddForm] = useState<boolean>(false);
   const { formData: addFormData, handleFormChange, resetForm } = useAddContentForm();
   const [addingContent, setAddingContent] = useState<boolean>(false);
+  const [snackbarOpen, setSnackbarOpen] = useState<boolean>(false);
+  const [snackbarMsg, setSnackbarMsg] = useState<string>('');
+  const [snackbarSeverity, setSnackbarSeverity] = useState<'success' | 'error' | 'info' | 'warning'>('info');
+
+  const showSnackbar = useCallback((msg: string, severity: 'success' | 'error' | 'info' | 'warning' = 'info') => {
+    setSnackbarMsg(msg);
+    setSnackbarSeverity(severity);
+    setSnackbarOpen(true);
+  }, []);
 
   const fetchContent = useCallback(async (): Promise<void> => {
+    const controller = new AbortController();
     try {
       setLoading(true);
       setError('');
@@ -40,72 +48,70 @@ const Manage: React.FC = () => {
       if (!dbUrl) {
         setError('Database URL missing. Please configure credentials.');
         setContent([]);
-        setFilteredContent([]);
-        setStats({ total: 0, movies: 0, series: 0, showing: 0 });
         return;
       }
-      const res = await fetch('/api/content', { headers: { 'x-db-url': dbUrl } });
+      const res = await fetch('/api/content', { headers: { 'x-db-url': dbUrl }, signal: controller.signal });
       if (!res.ok) {
         const t = await res.text();
         throw new Error(`${res.status}: ${t}`);
       }
       const json = await res.json() as { content?: ContentItem[] };
-      const all = Array.isArray(json.content) ? json.content : [];
-      setContent(all);
-      setFilteredContent(all);
-      setStats(calculateStats(all));
+      setContent(Array.isArray(json.content) ? json.content : []);
     } catch (err) {
+      if ((err as any)?.name === 'AbortError') return;
       setError(err instanceof Error ? err.message : 'Failed to fetch content');
     } finally {
       setLoading(false);
     }
   }, []);
 
-  const updateStats = (data: ContentItem[]): void => {
-    setStats(calculateStats(data));
-  };
-
-  const handleSearch = (term: string): void => {
+  const handleSearch = useCallback((term: string): void => {
     setSearchTerm(term);
-    filterContent(term, filterType);
-  };
+  }, []);
 
-  const handleFilter = (type: 'all' | 'movie' | 'series'): void => {
+  const handleFilter = useCallback((type: 'all' | 'movie' | 'series'): void => {
     setFilterType(type);
-    filterContent(searchTerm, type);
-  };
+  }, []);
 
-  const filterContent = (term: string, type: 'all' | 'movie' | 'series'): void => {
+  const filteredContent = useMemo(() => {
     let filtered = content;
-    if (type !== 'all') filtered = filtered.filter(item => item.type === type);
-    if (term) {
-      const q = term.toLowerCase();
+    if (filterType !== 'all') filtered = filtered.filter(item => item.type === filterType);
+    if (searchTerm) {
+      const q = searchTerm.toLowerCase();
       filtered = filtered.filter(item => (item.name || '').toLowerCase().includes(q) || (item.id || '').toLowerCase().includes(q));
     }
-    setFilteredContent(filtered);
-    updateStats(filtered);
-  };
+    return filtered;
+  }, [content, searchTerm, filterType]);
 
-  const removeContent = async (id: string, type: 'movie' | 'series'): Promise<void> => {
+  const stats = useMemo(() => calculateStats(filteredContent), [filteredContent]);
+
+  const removeContent = useCallback(async (id: string, type: 'movie' | 'series'): Promise<void> => {
     try {
       const dbUrl = getDbUrl();
-      if (!dbUrl) return alert('Database URL missing. Configure credentials first.');
+      if (!dbUrl) {
+        showSnackbar('Database URL missing. Configure credentials first.', 'warning');
+        return;
+      }
       const res = await fetch(`/api/content/${type}/${id}`, { method: 'DELETE', headers: { 'x-db-url': dbUrl } });
       if (!res.ok) {
         const t = await res.text();
         throw new Error(`${res.status}: ${t}`);
       }
       await fetchContent();
+      showSnackbar('Content removed successfully', 'success');
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to remove content');
+      showSnackbar(err instanceof Error ? err.message : 'Failed to remove content', 'error');
     }
-  };
+  }, [fetchContent, showSnackbar]);
 
-  const addContent = async (): Promise<void> => {
+  const addContent = useCallback(async (): Promise<void> => {
     try {
       setAddingContent(true);
       const dbUrl = getDbUrl();
-      if (!dbUrl) return alert('Database URL missing. Configure credentials first.');
+      if (!dbUrl) {
+        showSnackbar('Database URL missing. Configure credentials first.', 'warning');
+        return;
+      }
       const body = { type: addFormData.type, imdbID: addFormData.imdbId, stream: addFormData.streamLink };
       const res = await fetch('/api/content', {
         method: 'POST',
@@ -119,40 +125,17 @@ const Manage: React.FC = () => {
       resetForm();
       setShowAddForm(false);
       await fetchContent();
-      alert('Content added successfully!');
+      showSnackbar('Content added successfully!', 'success');
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to add content');
+      showSnackbar(err instanceof Error ? err.message : 'Failed to add content', 'error');
     } finally {
       setAddingContent(false);
     }
-  };
-
-  const resetAddForm = (): void => {
-    resetForm();
-    setShowAddForm(false);
-  };
+  }, [addFormData.type, addFormData.imdbId, addFormData.streamLink, fetchContent, resetForm, showSnackbar]);
 
   useEffect(() => {
     fetchContent();
   }, [fetchContent]);
-
-  // Debug: Monitor content state changes
-  useEffect(() => {
-    console.log('Content state changed:', {
-      contentLength: content.length,
-      content: content,
-      filteredContentLength: filteredContent.length,
-      filteredContent: filteredContent
-    });
-  }, [content, filteredContent]);
-
-  // Memoized sorted content for better performance
-  const sortedContent = useMemo(() => {
-    return [...filteredContent].sort((a, b) => {
-      if (a.type !== b.type) return a.type.localeCompare(b.type);
-      return (a.name || '').localeCompare(b.name || '');
-    });
-  }, [filteredContent]);
 
   if (loading) return <LoadingState />;
   if (error) return <ErrorState error={error} />;
@@ -173,7 +156,7 @@ const Manage: React.FC = () => {
 
       <ContentTable
         content={content}
-        filteredContent={sortedContent}
+        filteredContent={filteredContent}
         onRemoveContent={removeContent}
       />
 
@@ -183,8 +166,19 @@ const Manage: React.FC = () => {
         addingContent={addingContent}
         onFormChange={handleFormChange}
         onSubmit={addContent}
-        onCancel={resetAddForm}
+        onCancel={() => { resetForm(); setShowAddForm(false); }}
       />
+
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={2500}
+        onClose={() => setSnackbarOpen(false)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert severity={snackbarSeverity} onClose={() => setSnackbarOpen(false)} sx={{ width: '100%' }}>
+          {snackbarMsg}
+        </Alert>
+      </Snackbar>
     </Container>
   );
 };
