@@ -39,6 +39,27 @@ export default defineConfig(({ mode }) => {
       // Show console logs in terminal
       hmr: {
         overlay: false
+      },
+      // Proxy API requests to Python backend
+      proxy: {
+        '/api': {
+          target: 'http://render.com', // Fallback target
+          changeOrigin: true,
+          secure: false,
+          configure: (proxy, options) => {
+            // Log the target for debugging
+            console.log(`API proxy target: ${options.target}`);
+          },
+          // Dynamic target based on current host
+          router: (req: any) => {
+            const host = req.headers.host;
+            const protocol = req.protocol || 'http';
+            const baseUrl = `${protocol}://${host}`;
+            const target = baseUrl.replace(/:\d+/, ':5000'); // Replace port with 5000
+            console.log(`Dynamic proxy target: ${target}`);
+            return target;
+          }
+        }
       }
     }
   }

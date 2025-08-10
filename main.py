@@ -33,30 +33,7 @@ def parse_mongo_url():
 
 BEST_TRACKERS = "https://raw.githubusercontent.com/ngosang/trackerslist/master/trackers_best.txt"
 
-MANIFEST = {
-    "id": "org.stremio.streamsave",
-    "version": "0.0.3",
-    "name": "Stream Save",
-    "description": "save custom stream links and play in different devices",
 
-    'resources': [
-        'catalog',
-        {'name': 'stream', 'types': ['movie', 'series'], 'idPrefixes': ['tt']}
-    ],
-
-    "types": ["movie", "series", "other"],
-
-    'catalogs': [
-        {'type': 'movie', 'name': 'Saved Movies', 'id': 'stream_save_movies'},
-        {'type': 'series', 'name': 'Saved Series', 'id': 'stream_save_series'},
-    ],
-
-    'behaviorHints': {
-        'configurable': True,
-    },
-
-    "idPrefixes": ["tt"]
-}
 
 app = Flask(__name__, template_folder="./ui")
 
@@ -155,6 +132,125 @@ def addon_catalog_redirect(type):
     cluster = mongo_creds.get('cluster', '')
     return redirect(f"/{user}/{passw}/{cluster}/catalog/{type}/id.json")
 
+
+# API Routes for React Frontend
+@app.route('/api/content', methods=['GET'])
+def api_get_all_content():
+    """API endpoint to get all content from the database"""
+    try:
+        # Get MongoDB credentials from environment
+        mongo_creds = parse_mongo_url()
+        if not mongo_creds['user'] or not mongo_creds['passw'] or not mongo_creds['cluster']:
+            return respond_with({'error': 'MongoDB credentials not configured'}), 400
+        
+        db_url = f"mongodb+srv://{mongo_creds['user']}:{mongo_creds['passw']}@{mongo_creds['cluster']}.mongodb.net"
+        client = MongoClient(db_url)
+        
+        # Get all movies and series
+        movie_catalog = movieCatalog(client)
+        series_catalog = seriesCatalog(client)
+        
+        all_movies = movie_catalog.full() if movie_catalog.full() else []
+        all_series = series_catalog.full() if series_catalog.full() else []
+        
+        # Combine and format the data
+        content = []
+        
+        if all_movies:
+            for movie in all_movies:
+                content.append({
+                    'id': movie.get('id'),
+                    'type': 'movie',
+                    'title': movie.get('name'),
+                    'description': movie.get('overview'),
+                    'poster': movie.get('poster'),
+                    'year': movie.get('year'),
+                    'rating': movie.get('rating')
+                })
+        
+        if all_series:
+            for series in all_series:
+                content.append({
+                    'id': series.get('id'),
+                    'type': 'series',
+                    'title': series.get('name'),
+                    'description': series.get('overview'),
+                    'poster': series.get('poster'),
+                    'year': series.get('year'),
+                    'rating': series.get('rating')
+                })
+        
+        return respond_with({'content': content})
+        
+    except Exception as e:
+        print(f"Error fetching all content: {str(e)}")
+        return respond_with({'error': f'Failed to fetch content: {str(e)}'}), 500
+
+@app.route('/api/movies', methods=['GET'])
+def api_get_movies():
+    """API endpoint to get all movies"""
+    try:
+        mongo_creds = parse_mongo_url()
+        if not mongo_creds['user'] or not mongo_creds['passw'] or not mongo_creds['cluster']:
+            return respond_with({'error': 'MongoDB credentials not configured'}), 400
+        
+        db_url = f"mongodb+srv://{mongo_creds['user']}:{mongo_creds['passw']}@{mongo_creds['cluster']}.mongodb.net"
+        client = MongoClient(db_url)
+        
+        movie_catalog = movieCatalog(client)
+        all_movies = movie_catalog.full() if movie_catalog.full() else []
+        
+        movies = []
+        if all_movies:
+            for movie in all_movies:
+                movies.append({
+                    'id': movie.get('id'),
+                    'type': 'movie',
+                    'title': movie.get('name'),
+                    'description': movie.get('overview'),
+                    'poster': movie.get('poster'),
+                    'year': movie.get('year'),
+                    'rating': movie.get('rating')
+                })
+        
+        return respond_with({'movies': movies})
+        
+    except Exception as e:
+        print(f"Error fetching movies: {str(e)}")
+        return respond_with({'error': f'Failed to fetch movies: {str(e)}'}), 500
+
+@app.route('/api/series', methods=['GET'])
+def api_get_series():
+    """API endpoint to get all series"""
+    try:
+        mongo_creds = parse_mongo_url()
+        if not mongo_creds['user'] or not mongo_creds['passw'] or not mongo_creds['cluster']:
+            return respond_with({'error': 'MongoDB credentials not configured'}), 400
+        
+        db_url = f"mongodb+srv://{mongo_creds['user']}:{mongo_creds['passw']}@{mongo_creds['cluster']}.mongodb.net"
+        client = MongoClient(db_url)
+        
+        series_catalog = seriesCatalog(client)
+        all_series = series_catalog.full() if series_catalog.full() else []
+        
+        series = []
+        if all_series:
+            for s in all_series:
+                series.append({
+                    'id': s.get('id'),
+                    'type': 'series',
+                    'title': s.get('name'),
+                    'description': s.get('overview'),
+                    'poster': s.get('poster'),
+                    'year': s.get('year'),
+                    'rating': s.get('rating')
+                })
+        
+        return respond_with({'series': series})
+        
+    except Exception as e:
+        print(f"Error fetching series: {str(e)}")
+        return respond_with({'error': f'Failed to fetch series: {str(e)}'}), 500
 
 @app.route('/catalog', methods=['GET'])
 def get_all_content():
