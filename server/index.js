@@ -318,6 +318,83 @@ async function createServer() {
     }
   });
 
+  // Fetch a single content item (with stream for movies)
+  app.get('/api/content/:type/:id', async (req, res) => {
+    try {
+      const { type, id } = req.params;
+      const { movieCatalog, movieStreams, seriesCatalog } = await getCollections(req);
+      if (type === 'movie') {
+        const [meta, streamDoc] = await Promise.all([
+          movieCatalog.findOne({ _id: id }),
+          movieStreams.findOne({ _id: id }),
+        ]);
+        if (!meta) return res.status(404).json({ error: 'not found' });
+        const item = normalize({ ...meta, type: 'movie' });
+        const stream = streamDoc?.data?.url || '';
+        return res.json({ item, stream });
+      }
+      if (type === 'series') {
+        const meta = await seriesCatalog.findOne({ _id: id });
+        if (!meta) return res.status(404).json({ error: 'not found' });
+        const item = normalize({ ...meta, type: 'series' });
+        return res.json({ item });
+      }
+      return res.status(400).json({ error: 'invalid type' });
+    } catch (e) {
+      const code = e?.statusCode || 500;
+      res.status(code).json({ error: e?.message || 'Failed to fetch item' });
+    }
+  });
+
+  // Update a single content item (supports movie stream link and basic metadata)
+  app.put('/api/content/:type/:id', async (req, res) => {
+    try {
+      const { type, id } = req.params;
+      const { stream, name, description, poster, releaseInfo, imdbRating } = req.body || {};
+      const { movieCatalog, movieStreams, seriesCatalog } = await getCollections(req);
+
+      const buildSetFields = () => {
+        const fields = {};
+        if (typeof name === 'string') fields.name = name;
+        if (typeof description === 'string') fields.description = description;
+        if (typeof poster === 'string') fields.poster = poster;
+        if (typeof releaseInfo === 'string') fields.releaseInfo = releaseInfo;
+        if (typeof imdbRating === 'string' || typeof imdbRating === 'number' || imdbRating === null) fields.imdbRating = imdbRating;
+        return fields;
+      };
+
+      if (type === 'movie') {
+        const setFields = buildSetFields();
+        if (Object.keys(setFields).length > 0) {
+          await movieCatalog.updateOne({ _id: id }, { $set: setFields });
+        }
+        if (typeof stream === 'string') {
+          const trimmed = stream.trim();
+          if (trimmed) {
+            await movieStreams.updateOne(
+              { _id: id },
+              { $set: { data: { url: trimmed } } },
+              { upsert: true }
+            );
+          } else {
+            await movieStreams.deleteOne({ _id: id });
+          }
+        }
+        return res.send('Success');
+      } else if (type === 'series') {
+        const setFields = buildSetFields();
+        if (Object.keys(setFields).length > 0) {
+          await seriesCatalog.updateOne({ _id: id }, { $set: setFields });
+        }
+        return res.send('Success');
+      }
+      return res.status(400).json({ error: 'invalid type' });
+    } catch (e) {
+      const code = e?.statusCode || 500;
+      res.status(code).json({ error: e?.message || 'Failed to update item' });
+    }
+  });
+
   if (!isProd) {
     const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({

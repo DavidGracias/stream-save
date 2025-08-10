@@ -11,16 +11,17 @@ import {
   Tooltip,
   Chip
 } from '@mui/material';
-import { Delete as DeleteIcon } from '@mui/icons-material';
+import { Delete as DeleteIcon, Edit as EditIcon } from '@mui/icons-material';
 import type { ContentItem } from '../../types';
 
 interface ContentTableProps {
   content: ContentItem[];
   filteredContent: ContentItem[];
   onRemoveContent: (id: string, type: 'movie' | 'series') => Promise<void>;
+  onEditContent: (item: ContentItem) => void;
 }
 
-const ContentTable: React.FC<ContentTableProps> = React.memo(({ filteredContent, onRemoveContent }) => {
+const ContentTable: React.FC<ContentTableProps> = React.memo(({ filteredContent, onRemoveContent, onEditContent }) => {
   // Memoize sorted content to avoid unnecessary re-sorting
   const sortedContent = useMemo(() => {
     return [...filteredContent].sort((a, b) => {
@@ -105,6 +106,15 @@ const ContentTable: React.FC<ContentTableProps> = React.memo(({ filteredContent,
                 <TableCell>{item.releaseInfo || 'N/A'}</TableCell>
                 <TableCell>{item.imdbRating || 'N/A'}</TableCell>
                 <TableCell align="center">
+                  <Tooltip title="Edit">
+                    <IconButton
+                      onClick={() => onEditContent(item)}
+                      size="small"
+                      color="primary"
+                    >
+                      <EditIcon />
+                    </IconButton>
+                  </Tooltip>
                   <Tooltip title="Remove">
                     <IconButton
                       onClick={() => onRemoveContent(item.id, item.type)}
