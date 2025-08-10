@@ -37,9 +37,7 @@ function App() {
     if (user && pass && cluster) {
       setMongoDBCred({ user, pass, cluster });
     }
-    if (urlUser && urlPass && urlCluster) {
-      setIsRedirected(true);
-    }
+    setIsRedirected(Boolean(urlUser && urlPass && urlCluster));
   }, []);
 
   // Check if we have valid credentials
@@ -60,7 +58,7 @@ function App() {
     return null;
   };
 
-  if (!hasValidCredentials && !isRedirected) {
+  if (!(hasValidCredentials || isRedirected)) {
     return (
       <BrowserRouter>
         <RouteLogger />
@@ -80,7 +78,7 @@ function App() {
               path="/configure"
               element={
                 isRedirected
-                  ? (() => { setIsRedirected(false); return <Navigate to="/" replace /> })()
+                  ? (() => { setIsRedirected(false); return <Navigate to="/manage" replace /> })()
                   : <Configure mongoDBCred={MongoDBCred} setMongoDBCred={setMongoDBCred} />
               }
             />
