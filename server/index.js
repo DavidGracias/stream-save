@@ -116,19 +116,18 @@ async function createServer() {
     res.json(MANIFEST);
   });
 
-  // Dynamic manifest: /:user/:pass/:cluster/manifest.json
-  app.get('/:user/:pass/:cluster/manifest.json', (_req, res) => {
+  // Dynamic manifest: support both :pass and :passw param names
+  const sendManifest = (_req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.json(MANIFEST);
-  });
+  };
+  app.get('/:user/:pass/:cluster/manifest.json', sendManifest);
+  app.get('/:user/:passw/:cluster/manifest.json', sendManifest);
 
   // Dynamic config: /:user/:pass/:cluster/configure
   app.get('/:user/:pass/:cluster/configure', (req, res) => {
     const { user, pass, cluster } = req.params;
-    const qpUser = encodeURIComponent(user);
-    const qpPass = encodeURIComponent(passw);
-    const qpCluster = encodeURIComponent(cluster);
-    res.redirect(`/configure?user=${qpUser}&pass=${qpPass}&cluster=${qpCluster}`);
+    res.redirect(`/configure?user=${user}&pass=${pass}&cluster=${cluster}`);
   });
 
   // API routes

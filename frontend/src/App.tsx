@@ -29,6 +29,15 @@ function App() {
     const urlPass = params.get('pass');
     const urlCluster = params.get('cluster');
 
+    console.log('envUser', envUser);
+    console.log('envPass', envPass);
+    console.log('envCluster', envCluster);
+    console.log('urlUser', urlUser);
+    console.log('urlPass', urlPass);
+    console.log('urlCluster', urlCluster);
+
+    window.alert(`envUser: ${envUser}\nenvPass: ${envPass}\nenvCluster: ${envCluster}\nurlUser: ${urlUser}\nurlPass: ${urlPass}\nurlCluster: ${urlCluster}`);
+
     const user = urlUser || envUser;
     const pass = urlPass || envPass;
     const cluster = urlCluster || envCluster;

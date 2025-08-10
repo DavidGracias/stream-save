@@ -58,12 +58,12 @@ const Configure: React.FC<ConfigureProps> = ({ mongoDBCred, setMongoDBCred }) =>
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const qpUser = params.get('user');
-    const qpPass = params.get('pass') || params.get('passw');
+    const qpPass = params.get('pass');
     const qpCluster = params.get('cluster');
     if (qpUser || qpPass || qpCluster) {
       console.debug('[configure] query params', {
         user: qpUser || '',
-        passw_len: (qpPass || '').length,
+        pass_len: (qpPass || '').length,
         cluster: qpCluster || ''
       });
     }

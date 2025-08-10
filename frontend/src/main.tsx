@@ -75,7 +75,7 @@ const theme = createTheme({
         root: {
           backgroundImage: 'none',
           backgroundColor: '#1a1a2e',
-          borderBottom: '1px solid #2d2d2d',
+          borderBottom: 'none',
         },
       },
     },
