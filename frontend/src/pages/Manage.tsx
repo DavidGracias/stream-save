@@ -10,7 +10,7 @@ import ContentTable from '../components/Manage/ContentTable';
 import AddContentButton from '../components/Manage/AddContentButton';
 import AddContentDialog from '../components/Manage/AddContentDialog';
 import { useAddContentForm } from '../components/Manage/useAddContentForm';
-import { Dialog, DialogTitle, DialogContent, TextField, DialogActions, Button, Stack } from '@mui/material';
+import { Dialog, DialogTitle, DialogContent, TextField, DialogActions, Button, Stack, Typography, Box } from '@mui/material';
 
 const getDbUrl = (): string => localStorage.getItem('db_url') || '';
 
@@ -43,6 +43,19 @@ const Manage: React.FC = () => {
   const [editPoster, setEditPoster] = useState<string>('');
   const [editReleaseInfo, setEditReleaseInfo] = useState<string>('');
   const [editImdbRating, setEditImdbRating] = useState<string>('');
+  const [editSaving, setEditSaving] = useState<boolean>(false);
+
+  const formFieldStyle = {
+    '& .MuiOutlinedInput-root': {
+      '& fieldset': { borderColor: '#2d2d2d' },
+      '&:hover fieldset': { borderColor: 'primary.main' },
+      '&.Mui-focused fieldset': { borderColor: 'primary.main' },
+    },
+    '& .MuiFormHelperText-root': {
+      color: 'text.secondary',
+      fontSize: '0.75rem',
+    },
+  } as const;
 
   const showSnackbar = useCallback((msg: string, severity: 'success' | 'error' | 'info' | 'warning' = 'info') => {
     setSnackbarMsg(msg);
@@ -123,6 +136,12 @@ const Manage: React.FC = () => {
         return;
       }
       setEditItem(item);
+      // Prefill from table row immediately
+      setEditName(item.name || '');
+      setEditDescription(item.description || '');
+      setEditPoster(item.poster || '');
+      setEditReleaseInfo((item.releaseInfo as any) || '');
+      setEditImdbRating(item.imdbRating === null || item.imdbRating === undefined ? '' : String(item.imdbRating));
       setEditStream('');
       setEditOpen(true);
       // Prefetch current stream for movies
@@ -136,7 +155,7 @@ const Manage: React.FC = () => {
             setEditDescription(j.item.description || '');
             setEditPoster(j.item.poster || '');
             setEditReleaseInfo(j.item.releaseInfo || '');
-            setEditImdbRating((j.item.imdbRating as any) || '');
+            setEditImdbRating(j.item.imdbRating === null || j.item.imdbRating === undefined ? '' : String(j.item.imdbRating));
           }
         }
       }
@@ -149,7 +168,7 @@ const Manage: React.FC = () => {
             setEditDescription(j.item.description || '');
             setEditPoster(j.item.poster || '');
             setEditReleaseInfo(j.item.releaseInfo || '');
-            setEditImdbRating((j.item.imdbRating as any) || '');
+            setEditImdbRating(j.item.imdbRating === null || j.item.imdbRating === undefined ? '' : String(j.item.imdbRating));
           }
         }
       }
@@ -161,17 +180,20 @@ const Manage: React.FC = () => {
   const saveEdit = useCallback(async () => {
     if (!editItem) return;
     try {
+      setEditSaving(true);
       const dbUrl = getDbUrl();
       if (!dbUrl) {
         showSnackbar('Database URL missing. Configure credentials first.', 'warning');
         return;
       }
+      const ratingStr = typeof editImdbRating === 'string' ? editImdbRating : String(editImdbRating);
+      const numericRating = ratingStr.trim() === '' ? null : (isNaN(parseFloat(ratingStr)) ? ratingStr : parseFloat(ratingStr));
       const payload: any = {
         name: editName,
         description: editDescription,
         poster: editPoster,
         releaseInfo: editReleaseInfo,
-        imdbRating: editImdbRating,
+        imdbRating: numericRating,
       };
       if (editItem.type === 'movie') payload.stream = editStream;
       const res = await fetch(`/api/content/${editItem.type}/${editItem.id}`, {
@@ -195,8 +217,10 @@ const Manage: React.FC = () => {
       showSnackbar('Changes saved', 'success');
     } catch (e) {
       showSnackbar(e instanceof Error ? e.message : 'Failed to save changes', 'error');
+    } finally {
+      setEditSaving(false);
     }
-  }, [editItem, editStream, fetchContent, showSnackbar]);
+  }, [editItem, editStream, fetchContent, showSnackbar, editName, editDescription, editPoster, editReleaseInfo, editImdbRating]);
 
   const addContent = useCallback(async (): Promise<void> => {
     try {
@@ -276,18 +300,29 @@ const Manage: React.FC = () => {
       </Snackbar>
 
       {/* Edit Dialog */}
-      <Dialog open={editOpen} onClose={() => setEditOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Edit Content</DialogTitle>
+      <Dialog
+        open={editOpen}
+        onClose={() => setEditOpen(false)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{ sx: { background: 'linear-gradient(135deg, #1a1a2e 0%, #2d2d2d 100%)', border: '1px solid #2d2d2d' } }}
+      >
+        <DialogTitle sx={{ color: 'primary.main', fontWeight: 'bold' }}>Edit Content</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
-            <TextField label="Type" value={editItem?.type || ''} InputProps={{ readOnly: true }} fullWidth />
-            <TextField label="IMDb ID" value={editItem?.id || ''} InputProps={{ readOnly: true }} fullWidth />
-            <TextField label="Title" value={editName} onChange={(e) => setEditName(e.target.value)} fullWidth />
-            <TextField label="Description" value={editDescription} onChange={(e) => setEditDescription(e.target.value)} fullWidth multiline minRows={3} />
-            <TextField label="Poster URL" value={editPoster} onChange={(e) => setEditPoster(e.target.value)} fullWidth />
+            <Box sx={{ p: 1.5, border: '1px dashed #2d2d2d', borderRadius: 1, bgcolor: 'rgba(108, 92, 231, 0.05)' }}>
+              <Typography variant="body2" color="text.secondary">
+                Note: The first two fields are not editable.
+              </Typography>
+            </Box>
+            <TextField label="Type" value={editItem?.type || ''} InputProps={{ readOnly: true }} fullWidth sx={formFieldStyle} helperText="Not editable" />
+            <TextField label="IMDb ID" value={editItem?.id || ''} InputProps={{ readOnly: true }} fullWidth sx={formFieldStyle} helperText="Not editable" />
+            <TextField label="Title" value={editName} onChange={(e) => setEditName(e.target.value)} fullWidth sx={formFieldStyle} />
+            <TextField label="Description" value={editDescription} onChange={(e) => setEditDescription(e.target.value)} fullWidth multiline minRows={3} sx={formFieldStyle} />
+            <TextField label="Poster URL" value={editPoster} onChange={(e) => setEditPoster(e.target.value)} fullWidth sx={formFieldStyle} />
             <Stack direction="row" spacing={2}>
-              <TextField label="Release Info" value={editReleaseInfo} onChange={(e) => setEditReleaseInfo(e.target.value)} fullWidth />
-              <TextField label="IMDb Rating" value={editImdbRating} onChange={(e) => setEditImdbRating(e.target.value)} fullWidth />
+              <TextField label="Release Info" value={editReleaseInfo} onChange={(e) => setEditReleaseInfo(e.target.value)} fullWidth sx={formFieldStyle} />
+              <TextField label="IMDb Rating" value={editImdbRating} onChange={(e) => setEditImdbRating(e.target.value)} fullWidth sx={formFieldStyle} />
             </Stack>
             {editItem?.type === 'movie' && (
               <TextField
@@ -296,13 +331,14 @@ const Manage: React.FC = () => {
                 onChange={(e) => setEditStream(e.target.value)}
                 placeholder="https://..."
                 fullWidth
+                sx={formFieldStyle}
               />
             )}
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setEditOpen(false)}>Cancel</Button>
-          <Button onClick={saveEdit} variant="contained">Save</Button>
+          <Button onClick={() => setEditOpen(false)} sx={{ borderRadius: 2 }}>Cancel</Button>
+          <Button onClick={saveEdit} variant="contained" disabled={editSaving} sx={{ borderRadius: 2 }}>{editSaving ? 'Saving...' : 'Save'}</Button>
         </DialogActions>
       </Dialog>
     </Container>

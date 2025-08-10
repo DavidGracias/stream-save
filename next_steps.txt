@@ -1,10 +1,4 @@
 Manage
-2. Add types enum to manage (for movies versus series, etc.)
-3. set different urls POSTs for adding and deleting content (Update routes to handle the POST and other info)
-4. allow POST url page to generate the mongodb url
-5. when posting to mongodb, we need to allow the user to see what the error is (especially helpful in debugging)
-6. Make POST page accept {remove/add} url query and update to appropriately send payloads (or use POST versus DELETE, which I think is better!!)
-7. Make sure Add content functionality is easy and clear here (maybe popup modal?) with that dissapearing footer
 8. allow manage to somehow use "user" as info as well (I think this is part of the metadata)
 9. auto hide/show information for the given user only (togglable views for admin, but need to click button -- no passwords or anything like that tho, just like an eyeball icon with a hand over it / x over it for "hide/show")
 
@@ -13,10 +7,7 @@ Later:
 include multiple user types on this page -- and that can be updated via the urls as well. Default to localhost
 add urls based off of user (localhost = default, rest = render.on url)
 Let filtering of users be the default
-Update routes to handle the POST and other info
 Update directory to discluse unneeded files
-Allow certain urls (stremio ones really) to redirect and add credentials to system
-
 
 
 

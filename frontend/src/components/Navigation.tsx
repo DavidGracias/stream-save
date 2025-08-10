@@ -10,11 +10,8 @@ import {
   Chip,
   Divider
 } from '@mui/material';
-import {
-  Home as HomeIcon,
-  Settings as SettingsIcon,
-  Edit as EditIcon
-} from '@mui/icons-material';
+import { Home as HomeIcon, Settings as SettingsIcon, Edit as EditIcon } from '@mui/icons-material';
+import { getNavButtonSx } from './navStyles';
 
 interface NavItem {
   path: string;
@@ -32,7 +29,7 @@ const Navigation: React.FC = () => {
 
   const navItems: NavItem[] = [
     { path: '/', label: 'Home', icon: <HomeIcon /> },
-    { path: '/manage', label: 'Manage', icon: <EditIcon /> }, // Use default primary color
+    { path: '/manage', label: 'Manage', icon: <EditIcon /> },
     { path: '/configure', label: 'Configure', icon: <SettingsIcon />, customColor: '#666666' } // Dark gray
   ];
 
@@ -78,51 +75,12 @@ const Navigation: React.FC = () => {
                   component={Link}
                   to={item.path}
                   startIcon={item.icon}
-                  variant={isActive(item.path) ? "contained" : "text"}
-                  color={isActive(item.path) ? "primary" : "inherit"}
-                  sx={{
-                    borderRadius: 2,
-                    px: 3,
-                    py: 1,
-                    fontWeight: 600,
-                    minWidth: 120,
-                    justifyContent: 'center',
-                    // Add borders with feature card colors
-                    ...(item.path === '/manage' && {
-                      border: '2px solid',
-                      borderColor: 'secondary.main',
-                      '&:hover': {
-                        borderColor: 'secondary.main',
-                        backgroundColor: 'rgba(108, 92, 231, 0.1)',
-                      },
-                    }),
-                    ...(item.path === '/configure' && {
-                      border: '2px solid',
-                      borderColor: '#00BFAE',
-                      '&:hover': {
-                        borderColor: '#00BFAE',
-                        backgroundColor: 'rgba(0, 191, 174, 0.1)',
-                      },
-                    }),
-                    // Custom colors for specific navigation items
-                    ...(item.customColor && {
-                      color: isActive(item.path) ? 'white' : item.customColor,
-                      backgroundColor: isActive(item.path) ? item.customColor : 'transparent',
-                      '&:hover': {
-                        backgroundColor: isActive(item.path)
-                          ? item.customColor
-                          : `${item.customColor}20`, // 20% opacity for hover
-                      },
-                    }),
-                    // Default hover behavior for items without custom colors
-                    ...(!item.customColor && {
-                      '&:hover': {
-                        backgroundColor: isActive(item.path)
-                          ? '#5f3dc4'
-                          : 'rgba(108, 92, 231, 0.1)',
-                      },
-                    }),
-                  }}
+                  variant={isActive(item.path) ? 'outlined' : 'text'}
+                  color={isActive(item.path) ? 'primary' : 'inherit'}
+                  sx={getNavButtonSx(
+                    isActive(item.path),
+                    item.path === '/manage' ? 'manage' : item.path === '/configure' ? 'configure' : item.path === '/' ? 'home' : 'default'
+                  )}
                 >
                   {item.label}
                 </Button>

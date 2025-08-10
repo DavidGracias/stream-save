@@ -13,8 +13,8 @@ const ActionButtons: React.FC = () => {
         <Button
           component={Link}
           to="/manage"
-          variant="contained"
-          color="primary"
+          variant="outlined"
+          color="secondary"
           size="large"
           fullWidth
           startIcon={<EditIcon />}
@@ -24,11 +24,11 @@ const ActionButtons: React.FC = () => {
             borderRadius: 3,
             border: '3px solid',
             borderColor: 'secondary.main',
-            boxShadow: '0 8px 32px rgba(108, 92, 231, 0.3)',
+            boxShadow: 'none',
             '&:hover': {
-              boxShadow: '0 12px 40px rgba(108, 92, 231, 0.4)',
+              boxShadow: '0 8px 32px rgba(0, 191, 174, 0.2)',
               transform: 'translateY(-2px)',
-              borderColor: 'secondary.light',
+              borderColor: 'secondary.main',
             },
             transition: 'all 0.3s ease',
           }}
@@ -41,7 +41,7 @@ const ActionButtons: React.FC = () => {
           component={Link}
           to="/configure"
           variant="outlined"
-          color="primary"
+          color="inherit"
           size="large"
           fullWidth
           startIcon={<SettingsIcon />}
@@ -51,9 +51,11 @@ const ActionButtons: React.FC = () => {
             borderRadius: 3,
             borderWidth: 3,
             borderColor: '#00BFAE',
+            color: '#00BFAE',
             '&:hover': {
               borderWidth: 3,
               borderColor: '#00BFAE',
+              color: '#00BFAE',
               transform: 'translateY(-2px)',
               boxShadow: '0 8px 32px rgba(0, 191, 174, 0.2)',
             },

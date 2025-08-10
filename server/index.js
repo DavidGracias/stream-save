@@ -144,8 +144,9 @@ async function createServer() {
     ],
     types: ['movie', 'series', 'other'],
     catalogs: [
-      { type: 'movie', name: 'Saved Movies', id: 'stream_save_movies' },
-      { type: 'series', name: 'Saved Series', id: 'stream_save_series' },
+      { type: 'other', name: 'Saved Links', id: 'stream_save_all' },
+      // { type: 'movie', name: 'Saved Movies', id: 'stream_save_movies' },
+      // { type: 'series', name: 'Saved Series', id: 'stream_save_series' },
     ],
     behaviorHints: { configurable: true },
     idPrefixes: ['tt'],
@@ -207,6 +208,17 @@ async function createServer() {
     try {
       const { entity_type, id } = req.params;
       const { movieCatalog, seriesCatalog } = await getCollectionsFromParams(req.params);
+      if (entity_type === 'all' && id === 'stream_save_all') {
+        const [movies, series] = await Promise.all([
+          movieCatalog.find({}).toArray(),
+          seriesCatalog.find({}).toArray(),
+        ]);
+        const metas = [
+          ...movies.map((m) => normalize({ ...m, type: 'movie' })),
+          ...series.map((s) => normalize({ ...s, type: 'series' })),
+        ];
+        return res.json({ metas });
+      }
       if (entity_type === 'movie' && id === 'stream_save_movies') {
         const movies = await movieCatalog.find({}).toArray();
         const metas = movies.map((m) => normalize({ ...m, type: 'movie' }));
