@@ -19,6 +19,10 @@ interface AddContentDialogProps {
   onFormChange: (field: string, value: string) => void;
   onSubmit: () => void;
   onCancel: () => void;
+  profiles: string[];
+  modalProfile: string;
+  setModalProfile: React.Dispatch<React.SetStateAction<string>>;
+  setProfiles: React.Dispatch<React.SetStateAction<string[]>>;
 }
 
 const AddContentDialog: React.FC<AddContentDialogProps> = ({
@@ -27,7 +31,11 @@ const AddContentDialog: React.FC<AddContentDialogProps> = ({
   addingContent,
   onFormChange,
   onSubmit,
-  onCancel
+  onCancel,
+  profiles,
+  modalProfile,
+  setModalProfile,
+  setProfiles,
 }) => {
   if (!showAddForm) return null;
 
@@ -79,6 +87,10 @@ const AddContentDialog: React.FC<AddContentDialogProps> = ({
             onFormChange={onFormChange}
             onSubmit={onSubmit}
             onCancel={onCancel}
+            profiles={profiles}
+            modalProfile={modalProfile}
+            setModalProfile={setModalProfile}
+            setProfiles={setProfiles}
           />
         </CardContent>
       </Card>

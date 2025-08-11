@@ -17,11 +17,12 @@ import type { ContentItem } from '../../types';
 interface ContentTableProps {
   content: ContentItem[];
   filteredContent: ContentItem[];
+  profile: string;
   onRemoveContent: (id: string, type: 'movie' | 'series') => Promise<void>;
   onEditContent: (item: ContentItem) => void;
 }
 
-const ContentTable: React.FC<ContentTableProps> = React.memo(({ filteredContent, onRemoveContent, onEditContent }) => {
+const ContentTable: React.FC<ContentTableProps> = React.memo(({ filteredContent, profile, onRemoveContent, onEditContent }) => {
   // Memoize sorted content to avoid unnecessary re-sorting
   const sortedContent = useMemo(() => {
     return [...filteredContent].sort((a, b) => {
@@ -33,14 +34,21 @@ const ContentTable: React.FC<ContentTableProps> = React.memo(({ filteredContent,
     });
   }, [filteredContent]);
 
+  // Apply profile-based visibility: only show items where owner matches profile
+  const displayedContent = useMemo(() => {
+    const p = (profile || '').trim();
+    if (!p || p.toLowerCase() === 'admin') return sortedContent;
+    return sortedContent.filter((item) => (item.owner || '') === p);
+  }, [sortedContent, profile]);
+
   // Memoize content type counts
   const contentStats = useMemo(() => {
-    const movies = filteredContent.filter(item => item.type === 'movie').length;
-    const series = filteredContent.filter(item => item.type === 'series').length;
-    return { movies, series, total: filteredContent.length };
-  }, [filteredContent]);
+    const movies = displayedContent.filter(item => item.type === 'movie').length;
+    const series = displayedContent.filter(item => item.type === 'series').length;
+    return { movies, series, total: displayedContent.length };
+  }, [displayedContent]);
 
-  if (filteredContent.length === 0) {
+  if (displayedContent.length === 0) {
     return (
       <div style={{ textAlign: 'center', padding: '2rem', color: '#666' }}>
         <p>No content found. Add some movies or series to get started!</p>
@@ -77,11 +85,12 @@ const ContentTable: React.FC<ContentTableProps> = React.memo(({ filteredContent,
               <TableCell>Title</TableCell>
               <TableCell>Year</TableCell>
               <TableCell>Rating</TableCell>
+              <TableCell>Owner</TableCell>
               <TableCell align="center">Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
-            {sortedContent.map((item) => (
+            {displayedContent.map((item) => (
               <TableRow key={`${item.type}-${item.id}`} hover>
                 <TableCell>
                   <Chip
@@ -105,6 +114,7 @@ const ContentTable: React.FC<ContentTableProps> = React.memo(({ filteredContent,
                 </TableCell>
                 <TableCell>{item.releaseInfo || 'N/A'}</TableCell>
                 <TableCell>{item.imdbRating || 'N/A'}</TableCell>
+                <TableCell>{item.owner || '—'}</TableCell>
                 <TableCell align="center">
                   <Tooltip title="Edit">
                     <IconButton

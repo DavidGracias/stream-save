@@ -14,6 +14,7 @@ export interface ContentItem {
   releaseInfo?: string | null;
   genres?: string[];
   background?: string;
+  owner?: string;
 }
 
 export interface Stats {

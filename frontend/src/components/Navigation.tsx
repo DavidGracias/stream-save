@@ -1,17 +1,9 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import {
-  AppBar,
-  Toolbar,
-  Typography,
-  Button,
-  Box,
-  Container,
-  Chip,
-  Divider
-} from '@mui/material';
+import { AppBar, Toolbar, Typography, Button, Box, Container, Chip, Divider } from '@mui/material';
 import { Home as HomeIcon, Settings as SettingsIcon, Edit as EditIcon } from '@mui/icons-material';
 import { getNavButtonSx } from './navStyles';
+import ProfileSelector from './ProfileSelector';
 
 interface NavItem {
   path: string;
@@ -20,7 +12,15 @@ interface NavItem {
   customColor?: string;
 }
 
-const Navigation: React.FC = () => {
+type NavigationProps = {
+  profiles: string[];
+  profile: string;
+  hasDbCreds: boolean;
+  setProfile: React.Dispatch<React.SetStateAction<string>>;
+  setProfiles: React.Dispatch<React.SetStateAction<string[]>>;
+};
+
+const Navigation: React.FC<NavigationProps> = ({ profiles, profile, hasDbCreds, setProfile, setProfiles }) => {
   const location = useLocation();
 
   const isActive = (path: string): boolean => {
@@ -32,6 +32,8 @@ const Navigation: React.FC = () => {
     { path: '/manage', label: 'Manage', icon: <EditIcon /> },
     { path: '/configure', label: 'Configure', icon: <SettingsIcon />, customColor: '#666666' } // Dark gray
   ];
+
+  // no local state here; all state lifted to App
 
   return (
     <AppBar position="static" elevation={0}>
@@ -97,6 +99,27 @@ const Navigation: React.FC = () => {
                 )}
               </React.Fragment>
             ))}
+            <Divider orientation="vertical" flexItem sx={{ height: 32, borderColor: 'rgba(255, 255, 255, 0.12)', mx: 1 }} />
+            <ProfileSelector
+              profiles={profiles}
+              profile={profile}
+              hasDbCreds={hasDbCreds}
+              setProfile={setProfile}
+              setProfiles={setProfiles}
+              size="medium"
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  height: 48,
+                  alignItems: 'center',
+                },
+                '& .MuiSelect-select': {
+                  display: 'flex',
+                  alignItems: 'center',
+                  paddingTop: '10px',
+                  paddingBottom: '10px',
+                },
+              }}
+            />
           </Box>
         </Toolbar>
       </Container>

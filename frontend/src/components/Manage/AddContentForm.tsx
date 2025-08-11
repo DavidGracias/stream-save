@@ -31,6 +31,10 @@ interface AddContentFormProps {
   onFormChange: (field: string, value: string) => void;
   onSubmit: () => void;
   onCancel: () => void;
+  profiles: string[];
+  modalProfile: string;
+  setModalProfile: React.Dispatch<React.SetStateAction<string>>;
+  setProfiles: React.Dispatch<React.SetStateAction<string[]>>;
 }
 
 const AddContentForm: React.FC<AddContentFormProps> = ({
@@ -38,7 +42,11 @@ const AddContentForm: React.FC<AddContentFormProps> = ({
   addingContent,
   onFormChange,
   onSubmit,
-  onCancel
+  onCancel,
+  profiles,
+  modalProfile,
+  setModalProfile,
+  setProfiles
 }) => {
   const formFieldStyle = {
     '& .MuiOutlinedInput-root': {
@@ -104,6 +112,30 @@ const AddContentForm: React.FC<AddContentFormProps> = ({
         >
           <MenuItem value="movie">Movie</MenuItem>
           <MenuItem value="series">Series</MenuItem>
+        </TextField>
+        <TextField
+          select
+          fullWidth
+          label="Profile"
+          value={modalProfile}
+          onChange={(e) => {
+            const val = e.target.value as string;
+            if (val === '__add__') {
+              const input = prompt('Enter new profile name');
+              if (!input?.trim()) return;
+              const trimmed = input.trim();
+              setProfiles((prev) => Array.from(new Set([...(prev || []), trimmed])) as string[]);
+              setModalProfile(trimmed);
+              return;
+            }
+            setModalProfile(val);
+          }}
+          sx={formFieldStyle}
+        >
+          {profiles.map((p) => (
+            <MenuItem key={p} value={p}>{p}</MenuItem>
+          ))}
+          <MenuItem value="__add__">+ Add profile</MenuItem>
         </TextField>
         <TextField
           fullWidth

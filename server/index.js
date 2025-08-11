@@ -92,6 +92,7 @@ function normalize(d) {
     poster: d.poster || '',
     releaseInfo: d.releaseInfo || '',
     imdbRating: d.imdbRating ?? null,
+    owner: d.owner || undefined,
   };
 }
 
@@ -164,6 +165,8 @@ async function createServer() {
     res.json(MANIFEST);
   };
   app.get('/:user/:pass/:cluster/manifest.json', sendManifest);
+  // Optional profile segment to scope data by owner
+  app.get('/:user/:pass/:cluster/:profile/manifest.json', sendManifest);
 
   // Dynamic config: /:user/:pass/:cluster/configure
   app.get('/:user/:pass/:cluster/configure', (req, res) => {
@@ -206,12 +209,13 @@ async function createServer() {
   async function handleCatalog(req, res) {
     res.setHeader('Access-Control-Allow-Origin', '*');
     try {
-      const { entity_type, id } = req.params;
+      const { entity_type, id, profile } = req.params;
       const { movieCatalog, seriesCatalog } = await getCollectionsFromParams(req.params);
+      const ownerFilter = profile ? { owner: profile } : {};
       if (entity_type === 'all' && id === 'stream_save_all') {
         const [movies, series] = await Promise.all([
-          movieCatalog.find({}).toArray(),
-          seriesCatalog.find({}).toArray(),
+          movieCatalog.find(ownerFilter).toArray(),
+          seriesCatalog.find(ownerFilter).toArray(),
         ]);
         const metas = [
           ...movies.map((m) => normalize({ ...m, type: 'movie' })),
@@ -220,12 +224,12 @@ async function createServer() {
         return res.json({ metas });
       }
       if (entity_type === 'movie' && id === 'stream_save_movies') {
-        const movies = await movieCatalog.find({}).toArray();
+        const movies = await movieCatalog.find(ownerFilter).toArray();
         const metas = movies.map((m) => normalize({ ...m, type: 'movie' }));
         return res.json({ metas });
       }
       if (entity_type === 'series' && id === 'stream_save_series') {
-        const series = await seriesCatalog.find({}).toArray();
+        const series = await seriesCatalog.find(ownerFilter).toArray();
         const metas = series.map((s) => normalize({ ...s, type: 'series' }));
         return res.json({ metas });
       }
@@ -236,15 +240,17 @@ async function createServer() {
     }
   }
   app.get('/:user/:pass/:cluster/catalog/:entity_type/:id.json', handleCatalog);
+  app.get('/:user/:pass/:cluster/:profile/catalog/:entity_type/:id.json', handleCatalog);
 
   // Stremio Stream endpoint
   async function handleStream(req, res) {
     res.setHeader('Access-Control-Allow-Origin', '*');
     try {
-      const { type, id } = req.params;
+      const { type, id, profile } = req.params;
       const { movieStreams } = await getCollectionsFromParams(req.params);
       if (type === 'movie') {
-        const doc = await movieStreams.findOne({ _id: id });
+        const query = profile ? { _id: id, owner: profile } : { _id: id };
+        const doc = await movieStreams.findOne(query);
         const url = doc?.data?.url || '';
         if (url) {
           return res.json({ streams: [{ title: 'Saved', name: 'Stream Save', url }] });
@@ -259,14 +265,17 @@ async function createServer() {
     }
   }
   app.get('/:user/:pass/:cluster/stream/:type/:id.json', handleStream);
+  app.get('/:user/:pass/:cluster/:profile/stream/:type/:id.json', handleStream);
 
   // API routes
   app.get('/api/content', async (req, res) => {
     try {
       const { movieCatalog, seriesCatalog } = await getCollections(req);
+      const owner = (req.header('x-owner') || '').trim();
+      const filter = owner ? { owner } : {};
       const [movies, series] = await Promise.all([
-        movieCatalog.find({}).toArray(),
-        seriesCatalog.find({}).toArray(),
+        movieCatalog.find(filter).toArray(),
+        seriesCatalog.find(filter).toArray(),
       ]);
       const content = [
         ...movies.map((m) => normalize({ ...m, type: 'movie' })),
@@ -279,16 +288,38 @@ async function createServer() {
     }
   });
 
+  // Distinct owners across catalogs to drive profile selector
+  app.get('/api/owners', async (req, res) => {
+    try {
+      const { movieCatalog, seriesCatalog } = await getCollections(req);
+      const [a, b] = await Promise.all([
+        movieCatalog.distinct('owner'),
+        seriesCatalog.distinct('owner'),
+      ]);
+      const owners = Array.from(new Set([
+        ...a.filter(Boolean),
+        ...b.filter(Boolean),
+      ]));
+      if (owners.length === 0) owners.push('admin');
+      owners.sort((x, y) => x.localeCompare(y));
+      res.json({ owners });
+    } catch (e) {
+      const code = e?.statusCode || 500;
+      res.status(code).json({ error: e?.message || 'Failed to fetch owners' });
+    }
+  });
+
   app.post('/api/content', async (req, res) => {
     try {
       const { type, imdbID, stream } = req.body || {};
       if (!type || !imdbID) return res.status(400).json({ error: 'type and imdbID required' });
       const { movieCatalog, movieStreams, seriesCatalog } = await getCollections(req);
+      const owner = (req.header('x-owner') || '').trim();
       const cleanId = String(imdbID).trim();
       if (type === 'movie') {
         await Promise.all([
-          movieCatalog.deleteOne({ _id: cleanId }),
-          movieStreams.deleteOne({ _id: cleanId }),
+          movieCatalog.deleteOne(owner ? { _id: cleanId, owner } : { _id: cleanId }),
+          movieStreams.deleteOne(owner ? { _id: cleanId, owner } : { _id: cleanId }),
         ]);
         const meta = await fetchMeta('movie', cleanId);
         const poster = meta?.poster || meta?.logo || meta?.background || '';
@@ -299,10 +330,11 @@ async function createServer() {
           poster,
           releaseInfo: meta?.releaseInfo || '',
           imdbRating: meta?.imdbRating || null,
+          ...(owner ? { owner } : {}),
         });
-        if (stream) await movieStreams.insertOne({ _id: cleanId, data: { url: String(stream).trim() } });
+        if (stream) await movieStreams.insertOne({ _id: cleanId, data: { url: String(stream).trim() }, ...(owner ? { owner } : {}) });
       } else if (type === 'series') {
-        await seriesCatalog.deleteOne({ _id: cleanId });
+        await seriesCatalog.deleteOne(owner ? { _id: cleanId, owner } : { _id: cleanId });
         const meta = await fetchMeta('series', cleanId);
         const poster = meta?.poster || meta?.logo || meta?.background || '';
         await seriesCatalog.insertOne({
@@ -312,6 +344,7 @@ async function createServer() {
           poster,
           releaseInfo: meta?.releaseInfo || '',
           imdbRating: meta?.imdbRating || null,
+          ...(owner ? { owner } : {}),
         });
       } else {
         return res.status(400).json({ error: 'invalid type' });
@@ -327,13 +360,14 @@ async function createServer() {
     try {
       const { type, id } = req.params;
       const { movieCatalog, movieStreams, seriesCatalog } = await getCollections(req);
+      const owner = (req.header('x-owner') || '').trim();
       if (type === 'movie') {
         await Promise.all([
-          movieCatalog.deleteOne({ _id: id }),
-          movieStreams.deleteOne({ _id: id }),
+          movieCatalog.deleteOne(owner ? { _id: id, owner } : { _id: id }),
+          movieStreams.deleteOne(owner ? { _id: id, owner } : { _id: id }),
         ]);
       } else if (type === 'series') {
-        await seriesCatalog.deleteOne({ _id: id });
+        await seriesCatalog.deleteOne(owner ? { _id: id, owner } : { _id: id });
       } else {
         return res.status(400).json({ error: 'invalid type' });
       }
@@ -349,10 +383,11 @@ async function createServer() {
     try {
       const { type, id } = req.params;
       const { movieCatalog, movieStreams, seriesCatalog } = await getCollections(req);
+      const owner = (req.header('x-owner') || '').trim();
       if (type === 'movie') {
         const [meta, streamDoc] = await Promise.all([
-          movieCatalog.findOne({ _id: id }),
-          movieStreams.findOne({ _id: id }),
+          movieCatalog.findOne(owner ? { _id: id, owner } : { _id: id }),
+          movieStreams.findOne(owner ? { _id: id, owner } : { _id: id }),
         ]);
         if (!meta) return res.status(404).json({ error: 'not found' });
         const item = normalize({ ...meta, type: 'movie' });
@@ -360,7 +395,7 @@ async function createServer() {
         return res.json({ item, stream });
       }
       if (type === 'series') {
-        const meta = await seriesCatalog.findOne({ _id: id });
+        const meta = await seriesCatalog.findOne(owner ? { _id: id, owner } : { _id: id });
         if (!meta) return res.status(404).json({ error: 'not found' });
         const item = normalize({ ...meta, type: 'series' });
         return res.json({ item });
@@ -378,6 +413,7 @@ async function createServer() {
       const { type, id } = req.params;
       const { stream, name, description, poster, releaseInfo, imdbRating } = req.body || {};
       const { movieCatalog, movieStreams, seriesCatalog } = await getCollections(req);
+      const owner = (req.header('x-owner') || '').trim();
 
       const buildSetFields = () => {
         const fields = {};
@@ -392,25 +428,25 @@ async function createServer() {
       if (type === 'movie') {
         const setFields = buildSetFields();
         if (Object.keys(setFields).length > 0) {
-          await movieCatalog.updateOne({ _id: id }, { $set: setFields });
+          await movieCatalog.updateOne(owner ? { _id: id, owner } : { _id: id }, { $set: setFields });
         }
         if (typeof stream === 'string') {
           const trimmed = stream.trim();
           if (trimmed) {
             await movieStreams.updateOne(
-              { _id: id },
-              { $set: { data: { url: trimmed } } },
+              owner ? { _id: id, owner } : { _id: id },
+              { $set: { data: { url: trimmed }, ...(owner ? { owner } : {}) } },
               { upsert: true }
             );
           } else {
-            await movieStreams.deleteOne({ _id: id });
+            await movieStreams.deleteOne(owner ? { _id: id, owner } : { _id: id });
           }
         }
         return res.send('Success');
       } else if (type === 'series') {
         const setFields = buildSetFields();
         if (Object.keys(setFields).length > 0) {
-          await seriesCatalog.updateOne({ _id: id }, { $set: setFields });
+          await seriesCatalog.updateOne(owner ? { _id: id, owner } : { _id: id }, { $set: setFields });
         }
         return res.send('Success');
       }

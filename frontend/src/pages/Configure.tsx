@@ -19,9 +19,13 @@ import {
 interface ConfigureProps {
   mongoDBCred: MongoDBCredentials;
   setMongoDBCred: React.Dispatch<React.SetStateAction<MongoDBCredentials>>;
+  profile: string;
+  profiles: string[];
+  setProfile: React.Dispatch<React.SetStateAction<string>>;
+  setProfiles: React.Dispatch<React.SetStateAction<string[]>>;
 }
 
-const Configure: React.FC<ConfigureProps> = ({ mongoDBCred, setMongoDBCred }) => {
+const Configure: React.FC<ConfigureProps> = ({ mongoDBCred, setMongoDBCred, profiles, profile, setProfile, setProfiles }) => {
   const [formData, setFormData] = useState<FormData>({
     user: mongoDBCred.user || '',
     pass: mongoDBCred.pass || '',
@@ -38,10 +42,13 @@ const Configure: React.FC<ConfigureProps> = ({ mongoDBCred, setMongoDBCred }) =>
   const installUrl = useMemo(() => {
     if (formData.user && formData.pass && formData.cluster) {
       const host = window.location.origin;
-      return `${host}/${formData.user}/${formData.pass}/${formData.cluster}/manifest.json`;
+      const prof = (profile || '').trim();
+      return prof
+        ? `${host}/${formData.user}/${formData.pass}/${formData.cluster}/${prof}/manifest.json`
+        : `${host}/${formData.user}/${formData.pass}/${formData.cluster}/manifest.json`;
     }
     return '';
-  }, [formData.user, formData.pass, formData.cluster]);
+  }, [formData.user, formData.pass, formData.cluster, profile]);
 
   useEffect(() => {
     setFormData({
@@ -150,7 +157,10 @@ const Configure: React.FC<ConfigureProps> = ({ mongoDBCred, setMongoDBCred }) =>
   // Open Stremio deep link
   const openStremioLink = () => {
     if (formData.user && formData.pass && formData.cluster) {
-      const stremioDeepLink = `stremio://${window.location.host}/${formData.user}/${formData.pass}/${formData.cluster}/manifest.json`;
+      const prof = (profile || '').trim();
+      const stremioDeepLink = prof
+        ? `stremio://${window.location.host}/${formData.user}/${formData.pass}/${formData.cluster}/${prof}/manifest.json`
+        : `stremio://${window.location.host}/${formData.user}/${formData.pass}/${formData.cluster}/manifest.json`;
       setSuccessMessage('Opening in Stremio...');
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 2000);
@@ -174,6 +184,8 @@ const Configure: React.FC<ConfigureProps> = ({ mongoDBCred, setMongoDBCred }) =>
             showPassword={showPassword}
             setShowPassword={setShowPassword}
             onFieldChange={handleIndividualFieldChange}
+            profiles={profiles}
+            profile={profile}
           />
 
           <ConnectionUrlForm
@@ -189,6 +201,11 @@ const Configure: React.FC<ConfigureProps> = ({ mongoDBCred, setMongoDBCred }) =>
             showPassword={showPassword}
             onOpenInStremio={openStremioLink}
             onCopyUrl={handleCopyInstallUrl}
+            profiles={profiles}
+            profile={profile}
+            hasDbCreds={!!formData.db_url}
+            setProfile={setProfile}
+            setProfiles={setProfiles}
           />
 
           <ActionButtons

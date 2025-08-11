@@ -13,6 +13,7 @@ import { useAddContentForm } from '../components/Manage/useAddContentForm';
 import { Dialog, DialogTitle, DialogContent, TextField, DialogActions, Button, Stack, Typography, Box } from '@mui/material';
 
 const getDbUrl = (): string => localStorage.getItem('db_url') || '';
+const getOwner = (fallback?: string): string => localStorage.getItem('profile') || localStorage.getItem('owner') || fallback || '';
 
 const calculateStats = (content: ContentItem[]) => ({
   total: content.length,
@@ -21,7 +22,9 @@ const calculateStats = (content: ContentItem[]) => ({
   showing: content.length,
 });
 
-const Manage: React.FC = () => {
+type ManageProps = { profile: string; profiles: string[]; setProfiles: React.Dispatch<React.SetStateAction<string[]>> };
+
+const Manage: React.FC<ManageProps> = ({ profile, profiles, setProfiles }) => {
   const [content, setContent] = useState<ContentItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>('');
@@ -33,6 +36,7 @@ const Manage: React.FC = () => {
   const [snackbarOpen, setSnackbarOpen] = useState<boolean>(false);
   const [snackbarMsg, setSnackbarMsg] = useState<string>('');
   const [snackbarSeverity, setSnackbarSeverity] = useState<'success' | 'error' | 'info' | 'warning'>('info');
+  const [modalProfile, setModalProfile] = useState<string>(profile);
 
   // Edit state
   const [editOpen, setEditOpen] = useState<boolean>(false);
@@ -74,7 +78,7 @@ const Manage: React.FC = () => {
         setContent([]);
         return;
       }
-      const res = await fetch('/api/content', { headers: { 'x-db-url': dbUrl }, signal: controller.signal });
+      const res = await fetch('/api/content', { headers: { 'x-db-url': dbUrl, 'x-owner': getOwner(profile) }, signal: controller.signal });
       if (!res.ok) {
         const t = await res.text();
         throw new Error(`${res.status}: ${t}`);
@@ -87,7 +91,7 @@ const Manage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [profile]);
 
   const handleSearch = useCallback((term: string): void => {
     setSearchTerm(term);
@@ -102,7 +106,11 @@ const Manage: React.FC = () => {
     if (filterType !== 'all') filtered = filtered.filter(item => item.type === filterType);
     if (searchTerm) {
       const q = searchTerm.toLowerCase();
-      filtered = filtered.filter(item => (item.name || '').toLowerCase().includes(q) || (item.id || '').toLowerCase().includes(q));
+      filtered = filtered.filter(item =>
+        (item.name || '').toLowerCase().includes(q)
+        || (item.id || '').toLowerCase().includes(q)
+        || (item.owner || '').toLowerCase().includes(q)
+      );
     }
     return filtered;
   }, [content, searchTerm, filterType]);
@@ -116,7 +124,7 @@ const Manage: React.FC = () => {
         showSnackbar('Database URL missing. Configure credentials first.', 'warning');
         return;
       }
-      const res = await fetch(`/api/content/${type}/${id}`, { method: 'DELETE', headers: { 'x-db-url': dbUrl } });
+      const res = await fetch(`/api/content/${type}/${id}`, { method: 'DELETE', headers: { 'x-db-url': dbUrl, 'x-owner': getOwner(profile) } });
       if (!res.ok) {
         const t = await res.text();
         throw new Error(`${res.status}: ${t}`);
@@ -126,7 +134,7 @@ const Manage: React.FC = () => {
     } catch (err) {
       showSnackbar(err instanceof Error ? err.message : 'Failed to remove content', 'error');
     }
-  }, [fetchContent, showSnackbar]);
+  }, [fetchContent, showSnackbar, profile]);
 
   const openEdit = useCallback(async (item: ContentItem) => {
     try {
@@ -146,7 +154,7 @@ const Manage: React.FC = () => {
       setEditOpen(true);
       // Prefetch current stream for movies
       if (item.type === 'movie') {
-        const res = await fetch(`/api/content/${item.type}/${item.id}`, { headers: { 'x-db-url': dbUrl } });
+        const res = await fetch(`/api/content/${item.type}/${item.id}`, { headers: { 'x-db-url': dbUrl, 'x-owner': getOwner(profile) } });
         if (res.ok) {
           const j = await res.json() as { stream?: string; item?: ContentItem };
           setEditStream(j.stream || '');
@@ -160,7 +168,7 @@ const Manage: React.FC = () => {
         }
       }
       if (item.type === 'series') {
-        const res = await fetch(`/api/content/${item.type}/${item.id}`, { headers: { 'x-db-url': dbUrl } });
+        const res = await fetch(`/api/content/${item.type}/${item.id}`, { headers: { 'x-db-url': dbUrl, 'x-owner': getOwner(profile) } });
         if (res.ok) {
           const j = await res.json() as { item?: ContentItem };
           if (j.item) {
@@ -175,7 +183,7 @@ const Manage: React.FC = () => {
     } catch (e) {
       // ignore
     }
-  }, [showSnackbar]);
+  }, [showSnackbar, profile]);
 
   const saveEdit = useCallback(async () => {
     if (!editItem) return;
@@ -198,7 +206,7 @@ const Manage: React.FC = () => {
       if (editItem.type === 'movie') payload.stream = editStream;
       const res = await fetch(`/api/content/${editItem.type}/${editItem.id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'x-db-url': dbUrl },
+        headers: { 'Content-Type': 'application/json', 'x-db-url': dbUrl, 'x-owner': getOwner(profile) },
         body: JSON.stringify(payload),
       });
       if (!res.ok) {
@@ -220,7 +228,7 @@ const Manage: React.FC = () => {
     } finally {
       setEditSaving(false);
     }
-  }, [editItem, editStream, fetchContent, showSnackbar, editName, editDescription, editPoster, editReleaseInfo, editImdbRating]);
+  }, [editItem, editStream, fetchContent, showSnackbar, editName, editDescription, editPoster, editReleaseInfo, editImdbRating, profile]);
 
   const addContent = useCallback(async (): Promise<void> => {
     try {
@@ -233,7 +241,7 @@ const Manage: React.FC = () => {
       const body = { type: addFormData.type, imdbID: addFormData.imdbId, stream: addFormData.streamLink };
       const res = await fetch('/api/content', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-db-url': dbUrl },
+        headers: { 'Content-Type': 'application/json', 'x-db-url': dbUrl, 'x-owner': getOwner(modalProfile || profile) },
         body: JSON.stringify(body),
       });
       if (!res.ok) {
@@ -249,11 +257,13 @@ const Manage: React.FC = () => {
     } finally {
       setAddingContent(false);
     }
-  }, [addFormData.type, addFormData.imdbId, addFormData.streamLink, fetchContent, resetForm, showSnackbar]);
+  }, [addFormData.type, addFormData.imdbId, addFormData.streamLink, fetchContent, resetForm, showSnackbar, profile, modalProfile]);
 
   useEffect(() => {
     fetchContent();
-  }, [fetchContent]);
+  }, [fetchContent, profile]);
+
+  useEffect(() => { setModalProfile(profile); }, [profile]);
 
   if (loading) return <LoadingState />;
   if (error) return <ErrorState error={error} />;
@@ -275,6 +285,7 @@ const Manage: React.FC = () => {
       <ContentTable
         content={content}
         filteredContent={filteredContent}
+        profile={profile}
         onRemoveContent={removeContent}
         onEditContent={openEdit}
       />
@@ -286,6 +297,10 @@ const Manage: React.FC = () => {
         onFormChange={handleFormChange}
         onSubmit={addContent}
         onCancel={() => { resetForm(); setShowAddForm(false); }}
+        profiles={profiles}
+        modalProfile={modalProfile}
+        setModalProfile={setModalProfile}
+        setProfiles={setProfiles}
       />
 
       <Snackbar

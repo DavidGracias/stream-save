@@ -1,21 +1,12 @@
 import React from 'react';
-import {
-  Box,
-  Typography,
-  Button,
-  TextField,
-  InputAdornment,
-  Tooltip,
-  IconButton,
-  Divider,
-  Alert,
-} from '@mui/material';
+import { Box, Typography, Button, Tooltip, IconButton, Divider, Alert } from '@mui/material';
 import {
   InstallDesktop as InstallDesktopIcon,
   ContentCopy as ContentCopyIcon,
   Info as InfoIcon,
 } from '@mui/icons-material';
 import stremioSymbol from '../../assets/stremio_symbol.png';
+import ProfileSelector from '../ProfileSelector';
 
 interface InstallationSectionProps {
   installUrl: string;
@@ -23,6 +14,11 @@ interface InstallationSectionProps {
   showPassword: boolean;
   onOpenInStremio: () => void;
   onCopyUrl: () => void;
+  profiles?: string[];
+  profile?: string;
+  hasDbCreds?: boolean;
+  setProfile: React.Dispatch<React.SetStateAction<string>>;
+  setProfiles: React.Dispatch<React.SetStateAction<string[]>>;
 }
 
 const InstallationSection: React.FC<InstallationSectionProps> = ({
@@ -31,6 +27,11 @@ const InstallationSection: React.FC<InstallationSectionProps> = ({
   showPassword,
   onOpenInStremio,
   onCopyUrl,
+  profiles = [],
+  profile = 'admin',
+  hasDbCreds = true,
+  setProfile,
+  setProfiles,
 }) => {
   if (!installUrl) return null;
 
@@ -52,7 +53,27 @@ const InstallationSection: React.FC<InstallationSectionProps> = ({
         </Typography>
       </Box>
 
-      <Box sx={{ mb: 2, display: 'flex', alignItems: 'stretch' }}>
+      <Box sx={{ mb: 2, display: 'flex', alignItems: 'stretch', gap: 2, flexWrap: 'wrap' }}>
+        <ProfileSelector
+          profiles={profiles}
+          profile={profile}
+          hasDbCreds={hasDbCreds}
+          setProfile={setProfile}
+          setProfiles={setProfiles}
+          label="Profile"
+          size="medium"
+          sx={{
+            minWidth: 220,
+            '& .MuiOutlinedInput-root': {
+              height: 48,
+              alignItems: 'center',
+              '& fieldset': { borderColor: '#6c5ce7' },
+              '&:hover fieldset': { borderColor: '#8b7ae6' },
+              '&.Mui-focused fieldset': { borderColor: '#a29bfe' },
+            },
+            '& .MuiSelect-select': { display: 'flex', alignItems: 'center', paddingTop: '10px', paddingBottom: '10px' },
+          }}
+        />
         <Button
           variant="contained"
           onClick={onOpenInStremio}
@@ -79,50 +100,67 @@ const InstallationSection: React.FC<InstallationSectionProps> = ({
         >
           Open in Stremio
         </Button>
-        <TextField
-          fullWidth
-          label="Addon URL (manifest.json)"
-          value={showPassword ? installUrl : installUrl.replace(formData.pass, '<db_password>')}
-          variant="outlined"
-          InputProps={{
-            readOnly: true,
-            endAdornment: (
-              <InputAdornment position="end">
-                <Tooltip title="Copy URL">
-                  <IconButton
-                    onClick={onCopyUrl}
-                    sx={{
-                      color: '#4caf50',
-                      '&:hover': {
-                        backgroundColor: 'rgba(76, 175, 80, 0.1)',
-                      },
-                    }}
-                  >
-                    <ContentCopyIcon />
-                  </IconButton>
-                </Tooltip>
-              </InputAdornment>
-            ),
-          }}
+        <Box
           sx={{
             flex: 1,
-            '& .MuiOutlinedInput-root': {
-              borderRadius: '0 8px 8px 0',
-              '& fieldset': {
-                borderColor: '#2d2d2d',
-                borderLeft: 'none',
-              },
-              '&:hover fieldset': {
-                borderColor: 'primary.main',
-                borderLeft: 'none',
-              },
-              '&.Mui-focused fieldset': {
-                borderColor: 'primary.main',
-                borderLeft: 'none',
-              },
-            },
+            display: 'flex',
+            alignItems: 'center',
+            border: '1px solid',
+            borderColor: '#2d2d2d',
+            borderLeft: 'none',
+            borderRadius: '0 8px 8px 0',
+            px: 2,
+            height: '56px',
+            overflow: 'hidden',
+            '&:hover': { borderColor: 'primary.main' },
           }}
-        />
+        >
+          <Box sx={{ flex: 1, overflowX: 'auto', overflowY: 'hidden', whiteSpace: 'nowrap', fontFamily: 'monospace', fontSize: '0.95rem', userSelect: 'text' }} aria-label="Addon URL (manifest.json)">
+            {(() => {
+              try {
+                const u = new URL(installUrl);
+                const parts = u.pathname.split('/').filter(Boolean);
+                const [user, pass, cluster, maybeProfile, ...rest] = parts;
+                const maskedPass = showPassword ? pass : '<db_password>';
+                const hasProfile = !!maybeProfile && maybeProfile !== 'manifest.json' && maybeProfile !== 'catalog' && maybeProfile !== 'stream';
+                const tail = rest.length ? '/' + rest.join('/') : '';
+                return (
+                  <>
+                    <span>{u.origin}/</span>
+                    <span style={{ color: '#87CEEB' }}>{user}</span>
+                    <span>/</span>
+                    <span style={{ color: '#FFB6C1' }}>{maskedPass}</span>
+                    <span>/</span>
+                    <span style={{ color: '#FFD700' }}>{cluster}</span>
+                    {hasProfile && (
+                      <>
+                        <span>/</span>
+                        <span style={{ color: '#6c5ce7' }}>{maybeProfile}</span>
+                      </>
+                    )}
+                    <span>{tail}</span>
+                  </>
+                );
+              } catch {
+                const safeUrl = showPassword ? installUrl : installUrl.replace(formData.pass, '<db_password>');
+                return <span>{safeUrl}</span>;
+              }
+            })()}
+          </Box>
+          <Tooltip title="Copy URL">
+            <IconButton
+              onClick={onCopyUrl}
+              sx={{
+                color: '#4caf50',
+                '&:hover': {
+                  backgroundColor: 'rgba(76, 175, 80, 0.1)',
+                },
+              }}
+            >
+              <ContentCopyIcon />
+            </IconButton>
+          </Tooltip>
+        </Box>
       </Box>
 
       {/* Installation Instructions */}

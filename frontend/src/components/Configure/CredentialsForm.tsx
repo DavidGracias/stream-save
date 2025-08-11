@@ -18,6 +18,8 @@ interface CredentialsFormProps {
   showPassword: boolean;
   setShowPassword: (show: boolean) => void;
   onFieldChange: (field: string, value: string) => void;
+  profiles?: string[];
+  profile?: string;
 }
 
 const CredentialsForm: React.FC<CredentialsFormProps> = ({
@@ -84,6 +86,7 @@ const CredentialsForm: React.FC<CredentialsFormProps> = ({
             }}
           />
         </Box>
+        {/* Removed read-only Selected Profile field per request */}
         <Box sx={{ flex: 1 }}>
           <TextField
             fullWidth
